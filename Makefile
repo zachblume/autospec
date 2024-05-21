@@ -1,10 +1,14 @@
 .DEFAULT_GOAL := reset
 
-reset: stop start
+reset: install stop start
 
 start: todomvc realitycheck
 
 stop: stoptodomvc killrealitycheck
+
+install:
+	npm install
+	npx playwright install  
 
 todomvc:
 	docker run -d --name todomvc -p 9999:8080 daptin/todomvc-vuejs
@@ -16,4 +20,4 @@ realitycheck:
 	node realitycheck
 
 killrealitycheck:
-	pkill -f realitycheck.js
+	pkill -f realitycheck.js || true

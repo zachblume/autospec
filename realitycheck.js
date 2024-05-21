@@ -1,7 +1,8 @@
-import { url } from "inspector";
 import OpenAI from "openai";
-const testUrl = "http://localhost:3000";
-const { chromium } = require("playwright");
+const testUrl = "http://localhost:9999";
+import { chromium } from "playwright";
+import dotenv from "dotenv";
+dotenv.config();
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -10,7 +11,7 @@ async function main() {
     // Let's establish a browser context on the website to test, using
     // Playwright
     const browser = await chromium.launch();
-    const context = await browser.newContext();
+    const context = await browser.newContext({recordVideo:{dir: "videos"}});
     const page = await context.newPage();
     await page.goto(testUrl);
 
@@ -33,14 +34,12 @@ async function main() {
     //
     // Otherwise, we'll exit cleanly and output a video of the entire test run.
 
-    //
-    // Let's begin recording a video of the test
-    const video = await page.video().startRecording();
-
     // Let's map out the basic pages in question
+    let i = 0;
+    const max = 1;
     const urlsAlreadyVisited = new Set();
     const urlsToVisit = new Set([testUrl]);
-    while (urlsToVisit.size > 0) {
+    while (urlsToVisit.size > 0 && i < max) {
         const url = urlsToVisit.values().next().value;
         urlsToVisit.delete(url);
         urlsAlreadyVisited.add(url);
@@ -49,6 +48,10 @@ async function main() {
         for (const link of links) {
             if (link.startsWith(testUrl) && !urlsAlreadyVisited.has(link)) {
                 urlsToVisit.add(link);
+            }
+            i++
+            if (i >= max) {
+                break
             }
         }
     }
@@ -76,6 +79,25 @@ async function main() {
     array of string specs, one for each user journey you would like to test.
     `;
 
+    // Save video, then pick it back up as an array of base64 frames
+    const videoPath = await page.video().saveAs("video.webm");
+    
+    // Go pick up the file and convert it to an array of base64 frames
+    const videoFrames = await new Promise((resolve, reject) => {
+        const ffmpeg = require("fluent-ffmpeg");
+        const fs = require("fs");
+        const frames = [];
+        ffmpeg(videoPath)
+            .on("end", () => resolve(frames))
+            .on("error", reject)
+            .screenshots({
+                count: 100,
+                filename: "frame-%d.png",
+                folder: "video-frames",
+            });
+    });
+
+
     const testPlanChoices = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -85,7 +107,7 @@ async function main() {
                 role: "user",
                 content: [
                     prompt2,
-                    ...video.frames.map((frame) => frame.base64),
+                    ...videoFrames
                 ],
             },
         ],
