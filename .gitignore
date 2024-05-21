@@ -6,3 +6,4 @@ node_modules
 .ds_store
 .next
 .vercel
+*.webm
