@@ -72,24 +72,31 @@ async function main() {
         // test plan, mapping out which resources and mutations we should check
         // by what series of actions. The test plan will be formulated as an
         // array of string specs.
-        const prompt = `
-    You are a QA engineer at a software company. You have been tasked with
-    testing a website at ${testUrl}. You have been provided a video of the
-    website. Please generate a natural language test plan for the website,
-    mapping out which resources and mutations we should check by what series
-    of actions. The test plan should be formulated as an array of string specs,
-    one for each user journey you would like to test. Then, we'll execute the
-    test plan step by step and ask you again for feedback as to whether the
-    current state of the website is correct or we need to raise a flag/error
-    to the engineers to fix something.
-    `;
+        //     const prompt = `
+        // You are a QA engineer at a software company. You have been tasked with
+        // testing a website at ${testUrl}. You have been provided a video of the
+        // website. Please generate a natural language test plan for the website,
+        // mapping out which resources and mutations we should check by what series
+        // of actions. The test plan should be formulated as an array of string specs,
+        // one for each user journey you would like to test. Then, we'll execute the
+        // test plan step by step and ask you again for feedback as to whether the
+        // current state of the website is correct or we need to raise a flag/error
+        // to the engineers to fix something.
+        // `;
 
-        const prompt2 = `
-    These are frames of a video. Please generate a natural language test plan
-    for the website, mapping out which resources and mutations we should check
-    by what series of actions. The test plan should be formulated as an JSON
-    array of string specs, one for each user journey you would like to test.
-    `;
+        const prompt = `
+            Describe the screenshot image I'm providing, and then provide a
+            JSON array of formal checks that you will carry out as a manual
+            QA software engineer who will be testing this web app.
+
+            - Only provide one JSON block.
+            - Prefix the JSON block with ${"```"}json
+            - Suffix the JSON block with ${"```"}
+            - The array should be an array of strings, with
+              no further object complexity.
+            - Covering the most amount of user journeys with the fewest
+                amount of steps is the goal.
+        `;
 
         const videoFrames = await new Promise((resolve, reject) => {
             // We want to take the series of screenshots and convert them to
@@ -108,7 +115,7 @@ async function main() {
                         const path = `./trajectories/${runId}/${file}`;
                         const screenshot = fs.readFileSync(path);
                         const base64utf8 = screenshot.toString("base64");
-                        console.log({base64utf8})
+                        console.log({ base64utf8 });
                         return {
                             type: "image_url",
                             image_url: {
@@ -121,7 +128,7 @@ async function main() {
             });
         });
 
-        console.log({videoFrames})
+        console.log({ videoFrames });
         // return
 
         const testPlanChoices = await openai.chat.completions.create({
@@ -131,9 +138,7 @@ async function main() {
                 // video input:
                 {
                     role: "user",
-                    content: [{ type: "text", text: "Describe the screenshot image I'm providing, and then provide a JSON array of formal checks that you will carry out as a manual QA software engineer who will be testing this web app." },
-                     ...videoFrames
-                    ],
+                    content: [{ type: "text", text: prompt }, ...videoFrames],
                 },
             ],
         });
@@ -144,20 +149,18 @@ async function main() {
 
         // Verify that the testPlan is a valid JSON array of string specs
         let testPlanJson;
-        try {
-            testPlanJson = JSON.parse(testPlan);
-            if (!Array.isArray(testPlanJson)) {
-                throw new Error("Test plan is not an array");
+        // first, extract the JSON block from the string since it's prefixed
+        // with ```json and suffixed with ```
+        testPlanJson = testPlan.match(/```json\n(.*?)\n```/s)[1];
+        console.log({ testPlanJson });
+        testPlanJson = JSON.parse(testPlan);
+        if (!Array.isArray(testPlanJson)) {
+            throw new Error("Test plan is not an array");
+        }
+        for (const spec of testPlanJson) {
+            if (typeof spec !== "string") {
+                throw new Error("Test plan spec is not a string");
             }
-            for (const spec of testPlanJson) {
-                if (typeof spec !== "string") {
-                    throw new Error("Test plan spec is not a string");
-                }
-            }
-        } catch (e) {
-            console.error("Error parsing test plan:", e);
-            console.error("Test plan:", testPlan);
-            return;
         }
 
         // Armed with the initial mapping video and test plan, we'll go through
