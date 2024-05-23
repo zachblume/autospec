@@ -152,8 +152,8 @@ async function main() {
         // first, extract the JSON block from the string since it's prefixed
         // with ```json and suffixed with ```
         testPlanJson = testPlan.match(/```json\n(.*?)\n```/s)[1];
-        console.log({ testPlanJson });
-        testPlanJson = JSON.parse(testPlan);
+        console.log(testPlanJson);
+        testPlanJson = JSON.parse(testPlanJson);
         if (!Array.isArray(testPlanJson)) {
             throw new Error("Test plan is not an array");
         }
@@ -172,40 +172,102 @@ async function main() {
 
         for (const spec of testPlanJson) {
             await page.goto(testUrl);
-            const actions = spec.split("\n");
-            for (const action of actions) {
-                await page.evaluate((action) => {
-                    eval(action);
-                }, action);
-                const screenshot = await page.screenshot();
-                const screenshotBase64 = screenshot.toString("base64");
-                const screenshotChoices = await openai.chat.completions.create({
+
+            // For each spec, we want to start on the homepage, take a screenshot
+            // ask playwright if it looks right, waht the next step is (or if
+            // the spec has been fulfilled) in the format of a playwright
+            // action to evaluate, and then execute that playwright action.
+            // Then we can repeat this loop until the spec is fulfilled.
+            // If GPT-4o raises an error, we'll ask it to provide a natural
+            // language description of the error and a suggested fix and we'll
+            // stop the current spec.
+
+            let specFulfilled = false;
+            while (!specFulfilled) {
+                await page.screenshot({
+                    path: `trajectories/${runId}/screenshot-${i}.png`,
+                });
+
+                const screenshot = fs.readFileSync(
+                    `./trajectories/${runId}/screenshot-${i}.png`
+                );
+                const base64utf8 = screenshot.toString("base64");
+                const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
+
+                const specFeedback = await openai.chat.completions.create({
                     model: "gpt-4o",
                     messages: [
                         {
-                            role: "system",
-                            content: "Does this screenshot look correct?",
+                            role: "user",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `
+                                        Please check the screenshot below and provide feedback
+                                        on whether the current state of the website is correct
+                                        or if we need to raise a flag/error to the engineers to
+                                        fix something.
+                                    `,
+                                },
+                                {
+                                    type: "image_url",
+                                    image_url: {
+                                        url: screenshotImageUrl,
+                                        detail: "low",
+                                    },
+                                },
+                            ],
                         },
-                        { role: "user", content: screenshotBase64 },
                     ],
                 });
-                const screenshotFeedback =
-                    screenshotChoices.choices[0].message.content;
-                console.log("Screenshot feedback:", screenshotFeedback);
-                if (screenshotFeedback.toLowerCase().includes("error")) {
-                    console.error("Error in screenshot:", screenshotFeedback);
-                    return;
+
+                console.log({ specFeedback });
+
+                const feedback = specFeedback.choices[0].message.content;
+                if (
+                    feedback === "The current state of the website is correct."
+                ) {
+                    specFulfilled = true;
+                } else {
+                    // Ask GPT-4o to provide a natural language description of the
+                    // error and a suggested fix.
+                    const errorDescription =
+                        await openai.chat.completions.create({
+                            model: "gpt-4o",
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: `
+                                            Please provide a natural language description of the
+                                            error and a suggested fix.
+                                        `,
+                                        },
+                                    ],
+                                },
+                            ],
+                        });
+
+                    console.log({ errorDescription });
+
+                    const errorDescriptionText =
+                        errorDescription.choices[0].message.content;
+
+                    console.log({ errorDescriptionText });
+
+                    // Stop the current spec and move on to the next one
+                    specFulfilled = true;
                 }
             }
         }
 
         // Otherwise, we'll exit cleanly and output a video of the entire test
         // run.
-        await video.stopRecording();
-        await browser.close();
         console.log("Test complete");
-        console.log("Video:", video.path());
     } catch (e) {
+        console.error("Test error");
         console.error(e);
     } finally {
         await context.close(); // Properly close the context to save the video
