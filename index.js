@@ -1,14 +1,15 @@
 import OpenAI from "openai";
-const testUrl = "http://localhost:9999";
 import playwright from "playwright";
 import dotenv from "dotenv";
+import fs from "fs";
+
 dotenv.config();
+
+const testUrl = "http://localhost:9999";
+
 const openai = new OpenAI({
-    // process is an global brought in by the dotenv package
-    // eslint-disable-next-line no-undef
     apiKey: process.env.OPENAI_API_KEY,
 });
-import fs from "fs";
 
 const magicStrings = {
     specPassed: "The spec passed",
@@ -75,7 +76,34 @@ const prompts = {
 
 async function main() {
     const runId = Math.random().toString(36).substring(7);
+    const { browser, context, page } = await initializeBrowser(runId);
 
+    try {
+        await visitPages(page, runId);
+        const videoFrames = await getVideoFrames(runId);
+        const testPlan = await createTestPlan(videoFrames);
+
+        let j = 0;
+        for (const spec of testPlan) {
+            j++;
+            if (j > 3) {
+                throw Error("We're only allowing three specs for now.");
+            }
+            await page.goto(testUrl);
+            await runTestSpec(page, runId, spec);
+        }
+
+        console.log("Test complete");
+    } catch (e) {
+        console.error("Test error", e);
+    } finally {
+        await context.close();
+        await browser.close();
+        console.log("Video recording should be complete.");
+    }
+}
+
+async function initializeBrowser(runId) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
         recordVideo: {
@@ -83,207 +111,152 @@ async function main() {
             size: { width: 1280, height: 720 },
         },
     });
+    const page = await context.newPage();
+    return { browser, context, page };
+}
 
-    try {
-        const page = await context.newPage();
-        await page.goto(testUrl);
-        await page.waitForTimeout(1000); // Wait to capture some content
+async function visitPages(page, runId) {
+    await page.goto(testUrl);
+    await page.waitForTimeout(1000);
 
-        // Let's map out the basic pages in question
-        let i = 0;
-        const max = 1;
-        const urlsAlreadyVisited = new Set();
-        const urlsToVisit = new Set([testUrl]);
-        while (urlsToVisit.size > 0 && i < max) {
-            const url = urlsToVisit.values().next().value;
-            urlsToVisit.delete(url);
-            urlsAlreadyVisited.add(url);
-            await page.goto(url);
-            await page.screenshot({
-                path: `trajectories/${runId}/screenshot-${i}.png`,
-            });
-            const links = await page.$$eval("a", (as) => as.map((a) => a.href));
-            for (const link of links) {
-                if (link.startsWith(testUrl) && !urlsAlreadyVisited.has(link)) {
-                    urlsToVisit.add(link);
-                }
-                i++;
-                if (i >= max) {
-                    break;
-                }
+    const urlsAlreadyVisited = new Set();
+    const urlsToVisit = new Set([testUrl]);
+    let i = 0;
+    const max = 1;
+
+    while (urlsToVisit.size > 0 && i < max) {
+        const url = urlsToVisit.values().next().value;
+        urlsToVisit.delete(url);
+        urlsAlreadyVisited.add(url);
+        await page.goto(url);
+        await page.screenshot({
+            path: `trajectories/${runId}/screenshot-${i}.png`,
+        });
+        const links = await page.$$eval("a", (as) => as.map((a) => a.href));
+        for (const link of links) {
+            if (link.startsWith(testUrl) && !urlsAlreadyVisited.has(link)) {
+                urlsToVisit.add(link);
+            }
+            i++;
+            if (i >= max) {
+                break;
             }
         }
+    }
+}
 
-        const videoFrames = await new Promise((resolve, reject) => {
-            // We want to take the series of screenshots and convert them to
-            // base64 encoded strings to send to OpenAI
+async function getVideoFrames(runId) {
+    return new Promise((resolve, reject) => {
+        fs.readdir(`./trajectories/${runId}`, (err, files) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            const frames = files
+                .sort()
+                .filter((file) => file.startsWith("screenshot-"))
+                .map((file) => {
+                    const path = `./trajectories/${runId}/${file}`;
+                    const screenshot = fs.readFileSync(path);
+                    const base64utf8 = screenshot.toString("base64");
+                    return {
+                        type: "image_url",
+                        image_url: {
+                            url: `data:image/png;base64,${base64utf8}`,
+                            detail: "low",
+                        },
+                    };
+                });
+            resolve(frames);
+        });
+    });
+}
 
-            fs.readdir(`./trajectories/${runId}`, (err, files) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                const frames = files
-                    .sort()
-                    .filter((file) => file.startsWith("screenshot-"))
-                    .map((file) => {
-                        // Return the base64 encoded string in utf-8:
-                        const path = `./trajectories/${runId}/${file}`;
-                        const screenshot = fs.readFileSync(path);
-                        const base64utf8 = screenshot.toString("base64");
-                        console.log({ base64utf8 });
-                        return {
-                            type: "image_url",
-                            image_url: {
-                                url: `data:image/png;base64,${base64utf8}`,
-                                detail: "low",
-                            },
-                        };
-                    });
-                resolve(frames);
-            });
+async function createTestPlan(videoFrames) {
+    const testPlanChoices = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            {
+                role: "user",
+                content: [
+                    { type: "text", text: prompts.testPlan },
+                    ...videoFrames,
+                ],
+            },
+        ],
+    });
+
+    const testPlan = testPlanChoices.choices[0].message.content;
+    const testPlanJson = JSON.parse(testPlan.match(/```json\n(.*?)\n```/s)[1]);
+
+    if (!Array.isArray(testPlanJson)) {
+        throw new Error("Test plan is not an array");
+    }
+    testPlanJson.forEach((spec) => {
+        if (typeof spec !== "string") {
+            throw new Error("Test plan spec is not a string");
+        }
+    });
+
+    return testPlanJson;
+}
+
+async function runTestSpec(page, runId, spec, maxIterations = 10) {
+    let specFulfilled = false;
+    let k = 0;
+
+    while (!specFulfilled && ++k < maxIterations) {
+        await page.screenshot({
+            path: `trajectories/${runId}/screenshot-${k}.png`,
         });
 
-        console.log({ videoFrames });
-        // return
+        const screenshot = fs.readFileSync(
+            `./trajectories/${runId}/screenshot-${k}.png`
+        );
+        const base64utf8 = screenshot.toString("base64");
+        const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
 
-        const testPlanChoices = await openai.chat.completions.create({
+        const specFeedback = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                // { role: "system", content: prompt }, video input:
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: prompts.testPlan },
-                        ...videoFrames,
+                        {
+                            type: "text",
+                            text: prompts.specFeedback({ spec }),
+                        },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: screenshotImageUrl,
+                                detail: "low",
+                            },
+                        },
                     ],
                 },
             ],
         });
 
-        console.log({ testPlanChoices });
+        const feedback = specFeedback.choices[0].message.content;
+        if (feedback.includes(magicStrings.specPassed)) {
+            specFulfilled = true;
+        } else if (feedback.includes(magicStrings.specFailed)) {
+            const errorDescription = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: prompts.errorDescription },
+                        ],
+                    },
+                ],
+            });
 
-        const testPlan = testPlanChoices.choices[0].message.content;
-
-        // Verify that the testPlan is a valid JSON array of string specs
-        let testPlanJson;
-        // first, extract the JSON block from the string since it's prefixed
-        // with ```json and suffixed with ```
-        testPlanJson = testPlan.match(/```json\n(.*?)\n```/s)[1];
-        console.log(testPlanJson);
-        testPlanJson = JSON.parse(testPlanJson);
-        if (!Array.isArray(testPlanJson)) {
-            throw new Error("Test plan is not an array");
+            console.log(errorDescription.choices[0].message.content);
+            specFulfilled = true;
         }
-        for (const spec of testPlanJson) {
-            if (typeof spec !== "string") {
-                throw new Error("Test plan spec is not a string");
-            }
-        }
-
-        let j = 0;
-        for (const spec of testPlanJson) {
-            j++
-            if (j > 3) {
-                throw Error("We're only allowing three specs for now.");
-            }
-            await page.goto(testUrl);
-
-            // For each spec, we want to start on the homepage, take a
-            // screenshot ask playwright if it looks right, waht the next step
-            // is (or if the spec has been fulfilled) in the format of a
-            // playwright action to evaluate, and then execute that playwright
-            // action. Then we can repeat this loop until the spec is
-            // fulfilled. If GPT-4o raises an error, we'll ask it to provide a
-            // natural language description of the error and a suggested fix
-            // and we'll stop the current spec.
-
-            let specFulfilled = false;
-            let k = 0;
-            // For now, we're only allowing several spec to be fulfilled and
-            // only allowing 10 iterations of the loop for cost reasons.
-            while (!specFulfilled && ++k < 10) {
-                await page.screenshot({
-                    path: `trajectories/${runId}/screenshot-${i}.png`,
-                });
-
-                const screenshot = fs.readFileSync(
-                    `./trajectories/${runId}/screenshot-${i}.png`
-                );
-                const base64utf8 = screenshot.toString("base64");
-                const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
-
-                const specFeedback = await openai.chat.completions.create({
-                    model: "gpt-4o",
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                {
-                                    type: "text",
-                                    text: prompts.specFeedback({ spec }),
-                                },
-                                {
-                                    type: "image_url",
-                                    image_url: {
-                                        url: screenshotImageUrl,
-                                        detail: "low",
-                                    },
-                                },
-                            ],
-                        },
-                    ],
-                });
-
-                console.log({ specFeedback });
-
-                const feedback = specFeedback.choices[0].message.content;
-                console.log({ feedback });
-                if (feedback.includes(magicStrings.specPassed)) {
-                    specFulfilled = true;
-                } else if (feedback.includes(magicStrings.specFailed)) {
-                    // Ask GPT-4o to provide a natural language description of
-                    // the error and a suggested fix.
-                    const errorDescription =
-                        await openai.chat.completions.create({
-                            model: "gpt-4o",
-                            messages: [
-                                {
-                                    role: "user",
-                                    content: [
-                                        {
-                                            type: "text",
-                                            text: prompts.errorDescription,
-                                        },
-                                    ],
-                                },
-                            ],
-                        });
-
-                    console.log({ errorDescription });
-
-                    const errorDescriptionText =
-                        errorDescription.choices[0].message.content;
-
-                    console.log({ errorDescriptionText });
-
-                    // Stop the current spec and move on to the next one
-                    specFulfilled = true;
-                }
-            }
-
-        }
-
-        // Otherwise, we'll exit cleanly and output a video of the entire test
-        // run.
-        console.log("Test complete");
-    } catch (e) {
-        console.error("Test error");
-        console.error(e);
-    } finally {
-        await context.close(); // Properly close the context to save the video
-        await browser.close();
-        console.log("Video recording should be complete.");
     }
 }
 
