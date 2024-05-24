@@ -189,7 +189,7 @@ async function main() {
                 });
 
                 const screenshot = fs.readFileSync(
-                    `./trajectories/${runId}/screenshot-${i}.png`
+                    `./trajectories/${runId}/screenshot-${i}.png`,
                 );
                 const base64utf8 = screenshot.toString("base64");
                 const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;

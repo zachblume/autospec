@@ -1,4 +1,8 @@
 {
+    "scripts": {
+        "lint": "eslint .",
+        "format": "npx prettier --write ."
+    },
     "dependencies": {
         "@playwright/test": "^1.44.0",
         "dotenv": "^16.4.5",
@@ -6,5 +10,10 @@
         "openai": "^4.47.1",
         "playwright": "^1.44.0"
     },
-    "type": "module"
+    "type": "module",
+    "devDependencies": {
+        "@eslint/js": "^9.3.0",
+        "eslint": "^9.3.0",
+        "globals": "^15.3.0"
+    }
 }
