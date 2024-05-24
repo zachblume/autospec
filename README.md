@@ -12,3 +12,11 @@ raise an error.
 
 -   This allows RC to test _new_ behavior immediately after implementation, instead of just testing for regressions.
 -   This means RC requires no configuration.
+
+### Development
+
+```bash
+nvm use # Use Node.js version specified in .nvmrc
+npm install # Install dependencies
+make # Boot the docker app we are testing (todomvc) and run the agent
+```
