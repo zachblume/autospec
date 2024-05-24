@@ -3,6 +3,7 @@ import playwright from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";
 import winston from "winston";
+import chalk from "chalk";
 
 dotenv.config();
 
@@ -89,6 +90,8 @@ const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
+let testResults = [];
+
 async function main() {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -127,6 +130,7 @@ async function main() {
         await context.close();
         await browser.close();
         logger.info("Video recording should be complete.");
+        printTestResults();
     }
 }
 
@@ -302,6 +306,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
 
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
+            testResults.push({ spec, status: "passed" });
         } else if (feedback.includes(magicStrings.specFailed)) {
             const errorDescription = await newCompletion({
                 messages: conversationHistory.concat([
@@ -315,6 +320,11 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             });
 
             logger.info(errorDescription.choices[0].message.content);
+            testResults.push({
+                spec,
+                status: "failed",
+                reason: errorDescription.choices[0].message.content,
+            });
             specFulfilled = true;
         }
     }
@@ -355,6 +365,28 @@ async function executeAction({ page, action }) {
             break;
         default:
             throw new Error(`Unknown action: ${action.action}`);
+    }
+}
+
+function printTestResults() {
+    console.log(chalk.bold("\nTest Summary:"));
+
+    testResults.forEach((result, index) => {
+        const status =
+            result.status === "passed" ? chalk.green("✔") : chalk.red("✘");
+        console.log(`${status} ${result.spec}`);
+    });
+
+    const failedTests = testResults.filter(
+        (result) => result.status === "failed",
+    );
+
+    if (failedTests.length > 0) {
+        console.log(chalk.bold("\nFailures:"));
+        failedTests.forEach((result, index) => {
+            console.log(chalk.red(`\n${index + 1}. ${result.spec}`));
+            console.log(result.reason);
+        });
     }
 }
 
