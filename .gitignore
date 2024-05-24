@@ -8,3 +8,5 @@ node_modules
 .vercel
 *.webm
 trajectories/*
+# keep .gitkeep though:
+!.gitkeep
