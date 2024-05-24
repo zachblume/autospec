@@ -4,6 +4,8 @@ import playwright from "playwright";
 import dotenv from "dotenv";
 dotenv.config();
 const openai = new OpenAI({
+    // process is an global brought in by the dotenv package
+    // eslint-disable-next-line no-undef
     apiKey: process.env.OPENAI_API_KEY,
 });
 import fs from "fs";
