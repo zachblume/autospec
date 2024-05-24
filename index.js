@@ -81,7 +81,7 @@ const logger = winston.createLogger({
         winston.format.timestamp(),
         winston.format.printf(({ timestamp, level, message }) => {
             return `${timestamp} [${level.toUpperCase()}] - ${message}`;
-        })
+        }),
     ),
     transports: [new winston.transports.Console()],
 });
@@ -97,7 +97,7 @@ async function main() {
     logger.add(
         new winston.transports.File({
             filename: `./trajectories/${runId}/combined.log`,
-        })
+        }),
     );
 
     const { browser, context, page } = await initializeBrowser({ runId });
@@ -258,7 +258,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         });
 
         const screenshot = fs.readFileSync(
-            `./trajectories/${runId}/screenshot-${k}.png`
+            `./trajectories/${runId}/screenshot-${k}.png`,
         );
         const base64utf8 = screenshot.toString("base64");
         const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
