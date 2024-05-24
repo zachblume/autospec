@@ -173,17 +173,19 @@ async function getVideoFrames({ runId }) {
 }
 
 async function createTestPlan({ videoFrames }) {
+    const conversationHistory = [
+        {
+            role: "user",
+            content: [
+                { type: "text", text: prompts.testPlan },
+                ...videoFrames,
+            ],
+        },
+    ];
+
     const testPlanChoices = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [
-            {
-                role: "user",
-                content: [
-                    { type: "text", text: prompts.testPlan },
-                    ...videoFrames,
-                ],
-            },
-        ],
+        messages: conversationHistory,
     });
 
     const testPlan = testPlanChoices.choices[0].message.content;
@@ -204,6 +206,7 @@ async function createTestPlan({ videoFrames }) {
 async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     let specFulfilled = false;
     let k = 0;
+    const conversationHistory = [];
 
     while (!specFulfilled && ++k < maxIterations) {
         await page.screenshot({
@@ -216,42 +219,47 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         const base64utf8 = screenshot.toString("base64");
         const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
 
-        const specFeedback = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
+        conversationHistory.push({
+            role: "user",
+            content: [
                 {
-                    role: "user",
-                    content: [
-                        {
-                            type: "text",
-                            text: prompts.specFeedback({ spec }),
-                        },
-                        {
-                            type: "image_url",
-                            image_url: {
-                                url: screenshotImageUrl,
-                                detail: "low",
-                            },
-                        },
-                    ],
+                    type: "text",
+                    text: prompts.specFeedback({ spec }),
+                },
+                {
+                    type: "image_url",
+                    image_url: {
+                        url: screenshotImageUrl,
+                        detail: "low",
+                    },
                 },
             ],
         });
 
+        const specFeedback = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: conversationHistory,
+        });
+
         const feedback = specFeedback.choices[0].message.content;
+        conversationHistory.push({
+            role: "assistant",
+            content: feedback,
+        });
+
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
         } else if (feedback.includes(magicStrings.specFailed)) {
             const errorDescription = await openai.chat.completions.create({
                 model: "gpt-4o",
-                messages: [
+                messages: conversationHistory.concat([
                     {
                         role: "user",
                         content: [
                             { type: "text", text: prompts.errorDescription },
                         ],
                     },
-                ],
+                ]),
             });
 
             console.log(errorDescription.choices[0].message.content);
