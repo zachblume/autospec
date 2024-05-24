@@ -177,7 +177,10 @@ async function main() {
             // and we'll stop the current spec.
 
             let specFulfilled = false;
-            while (!specFulfilled) {
+            let j = 0;
+            // For now, we're only allowing one spec to be fulfilled and
+            // only allowing 10 iterations of the loop for cost reasons.
+            while (!specFulfilled && ++j < 10) {
                 await page.screenshot({
                     path: `trajectories/${runId}/screenshot-${i}.png`,
                 });
@@ -213,6 +216,7 @@ async function main() {
                 console.log({ specFeedback });
 
                 const feedback = specFeedback.choices[0].message.content;
+                console.log({ feedback });
                 if (feedback.includes(magicStrings.specPassed)) {
                     specFulfilled = true;
                 } else if (feedback.includes(magicStrings.specFailed)) {
@@ -245,6 +249,8 @@ async function main() {
                     specFulfilled = true;
                 }
             }
+
+            throw Error("We're only allowing one spec for now.");
         }
 
         // Otherwise, we'll exit cleanly and output a video of the entire test
