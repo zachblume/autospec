@@ -16,9 +16,14 @@ raise an error.
 ### Development
 
 ```bash
-nvm use # Use Node.js version specified in .nvmrc
-npm install # Install dependencies
-make # Boot the docker app we are testing (todomvc) and run the agent
-```
+# Copy the sample .env file, you'll need to fill in the OPENAI_API_KEY
+# before running the app:
+mv .env.example .env
 
-You'll need a openai key as well in the .env as OPENAI_API_KEY
+# Use Node.js version specified in .nvmrc:
+nvm use
+
+# Install dependencies, boot the docker app we are testing (todomvc),
+# and run the agent:
+make
+```
