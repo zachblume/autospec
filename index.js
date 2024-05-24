@@ -42,6 +42,7 @@ const prompts = {
             { action:"moveMouseTo", x:number, y:number },
             { action:"clickAtCurrentLocation" },
             { action:"keyboardInputString", string:string },
+            { action:"keyboardInputSingleKey", key:string },
             { action:"scroll", deltaX:number, deltaY:number },
             { action:"wait", milliseconds: number },
             { action:"waitForNavigation" },
@@ -317,16 +318,25 @@ async function executeAction({ page, action }) {
     switch (action.action) {
         case "moveMouseTo":
             await page.mouse.move(action.x, action.y);
+            await page.waitForTimeout(100);
             break;
         case "clickAtCurrentLocation":
             await page.mouse.down();
             await page.mouse.up();
+            await page.waitForTimeout(100);
             break;
         case "keyboardInputString":
             await page.keyboard.type(action.string);
+            // add 100ms delay after typing
+            await page.waitForTimeout(100);
+            break;
+        case "keyboardInputSingleKey":
+            await page.keyboard.press(action.key);
+            await page.waitForTimeout(100);
             break;
         case "scroll":
             await page.wheel({ deltaX: action.deltaX, deltaY: action.deltaY });
+            await page.waitForTimeout(100);
             break;
         case "wait":
             await page.waitForTimeout(action.milliseconds);
