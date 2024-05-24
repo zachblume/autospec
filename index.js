@@ -5,6 +5,7 @@ import fs from "fs";
 import winston from "winston";
 import chalk from "chalk";
 import stripAnsi from "strip-ansi";
+import { createCanvas, loadImage } from "canvas";
 
 dotenv.config();
 
@@ -36,6 +37,11 @@ const prompts = {
     specFeedback: ({ spec }) => `
         I have provided you with a 512x512 screenshot of the current state of
         the page after faithfully executing the last API call you requested.
+
+        The red dot is your current mouse cursor position.
+
+        Focus on inputs is not always clearly visible, so you'll need to infer
+        it based on your previous actions and what you can see.
         
         We're continuing to focus on this spec you previously provided:
         "${spec}"
@@ -103,20 +109,9 @@ const prompts = {
         failure, try to see if you can find it by interacting with the page
         or application a little more.
 
-        It is extremely important that you describe coordinates based precisely
-        on the screenshot you were just provided with, and never based on
-        general intuition, or making up numbers as an example. You always hover
-        and click towards the center of the elements you are looking for
-        instead of the edges to be conservative and ensure you don't miss.
-
-        If you find yourself taking the same action twice in a row because
-        you don't think the first action was successful, you should
-        vary the action slightly to see if that helps, rather than
-        repeating the same action endlessly. Eventually you will need
-        to mark the spec as failed if you can't find the element you
-        are looking for.
-
-        Lives are depending on your precision and accuracy in this task.
+        You always adjust your mouse position to the correct location before
+        clicking or proceeding with interactions if it seems like your mouse
+        position is off.
 
         What action you will take to comply with that test spec?
     `,
@@ -170,7 +165,7 @@ async function main() {
         let j = 0;
         for (const spec of testPlan) {
             j++;
-            if (j > 3) {
+            if (j > 10) {
                 break;
             }
             await page.goto(testUrl);
@@ -189,12 +184,6 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
-    // const lastMessage = messages[messages.length - 1];
-    // lastMessage.content.forEach((content) => { if (content.type === "text")
-    //     { logger.info(content.text); } else { logger.info(content.type);
-    //     }
-    // });
-
     const output = await openai.chat.completions.create({
         messages,
         model: "gpt-4o",
@@ -226,6 +215,17 @@ async function initializeBrowser({ runId }) {
         },
     });
     const page = await context.newPage();
+
+    await page.addInitScript(() => {
+        let x = 0,
+            y = 0;
+        document.onmousemove = (e) => {
+            x = e.pageX;
+            y = e.pageY;
+        };
+        window.getMousePosition = () => ({ x, y });
+    });
+
     return { browser, context, page };
 }
 
@@ -243,9 +243,9 @@ async function visitPages({ page, runId }) {
         urlsToVisit.delete(url);
         urlsAlreadyVisited.add(url);
         await page.goto(url);
-        await page.screenshot({
+        await saveScreenshotWithCursor({
+            page,
             path: `trajectories/${runId}/screenshot-${i}.png`,
-            caret: "initial",
         });
         const links = await page.$$eval("a", (as) => as.map((a) => a.href));
         for (const link of links) {
@@ -321,9 +321,9 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     const actionsTaken = [];
 
     while (!specFulfilled && ++k < maxIterations) {
-        await page.screenshot({
+        await saveScreenshotWithCursor({
+            page,
             path: `./trajectories/${runId}/screenshot-${k}.png`,
-            caret: "initial",
         });
 
         const screenshot = fs.readFileSync(
@@ -343,7 +343,6 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                     type: "image_url",
                     image_url: {
                         url: screenshotImageUrl,
-                        // detail: "low",
                     },
                 },
             ],
@@ -414,7 +413,6 @@ async function executeAction({ page, action }) {
             break;
         case "keyboardInputString":
             await page.keyboard.type(action.string);
-            // add 100ms delay after typing
             await page.waitForTimeout(100);
             break;
         case "keyboardInputSingleKey":
@@ -438,6 +436,23 @@ async function executeAction({ page, action }) {
             console.error("Unknown action", action);
             break;
     }
+}
+
+async function saveScreenshotWithCursor({ page, path }) {
+    const { x, y } = await page.evaluate(() => window.getMousePosition());
+    const screenshotBuffer = await page.screenshot();
+    const img = await loadImage(screenshotBuffer);
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(x, y, 1, 0, Math.PI * 2);
+    ctx.fill();
+    const out = fs.createWriteStream(path);
+    const stream = canvas.createPNGStream();
+    stream.pipe(out);
+    await new Promise((resolve) => out.on("finish", resolve));
 }
 
 function printTestResults() {
