@@ -9,6 +9,7 @@ dotenv.config();
 const testUrl = "http://localhost:9999";
 
 const openai = new OpenAI({
+    // eslint-disable-next-line no-undef
     apiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -19,9 +20,9 @@ const magicStrings = {
 
 const prompts = {
     testPlan: `
-        Describe the screenshot image I'm providing, and then provide a JSON
-        array of formal checks that you will carry out as a manual QA software
-        engineer who will be testing this web app.
+        Describe the 512x512 screenshot image I'm providing, and then provide a
+        JSON array of formal checks that you will carry out as a manual QA
+        software engineer who will be testing this web app.
 
         - You only respond with only the JSON array of your test plan and
           nothing else, without prefixes or suffixes.
@@ -31,8 +32,8 @@ const prompts = {
         steps is the goal.
     `,
     specFeedback: ({ spec }) => `
-        I have provided you with a screenshot of the current state of the page
-        after faithfully executing the last API call you requested.
+        I have provided you with a 512x512 screenshot of the current state of
+        the page after faithfully executing the last API call you requested.
         
         We're going to focus on this spec you provided:
         "${spec}"
@@ -46,7 +47,6 @@ const prompts = {
             { action:"scroll", deltaX:number, deltaY:number },
             { action:"wait", milliseconds: number },
             { action:"waitForNavigation" },
-            { action:"screenshot" },
             {
                 action:"markSpecAsComplete",
                 reason:
@@ -157,9 +157,13 @@ async function newCompletion({ messages }) {
 async function initializeBrowser({ runId }) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
+        screen: {
+            height: 512,
+            width: 512,
+        },
         recordVideo: {
             dir: `./trajectories/${runId}`,
-            size: { width: 1280, height: 720 },
+            size: { width: 512, height: 512 },
         },
     });
     const page = await context.newPage();
