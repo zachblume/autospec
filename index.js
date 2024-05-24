@@ -30,25 +30,42 @@ const prompts = {
         steps is the goal.
     `,
     specFeedback: ({ spec }) => `
-        I have provided you with a screenshot of the current state of the page after your last action.
+        I have provided you with a screenshot of the current state of the page
+        after faithfully executing the last API call you requested.
         
         We're going to focus on this spec you provided:
         "${spec}"
 
         You have an API of actions you can take:
         [
-            { action:"hoverOver", x:number, y:number },
-            { action:"clickAt", x:number, y:number },
-            { action:"keyboardInputString", string:string }
+            { action:"moveMouseTo", x:number, y:number },
+            { action:"clickAtCurrentLocation" },
+            { action:"keyboardInputString", string:string },
+            { action:"scroll", x:number, y:number },
+            { action:"wait", miliseconds: number },
+            { action:"waitForNavigation" },
+            { action:"screenshot" },
+            {
+                action:"markSpecAsComplete",
+                reason:
+                    "${magicStrings.specPassed}" | "${magicStrings.specFailed}"
+            },
         ]
         
-        What is the first action you will take to comply with that test spec?
-        
         If the screenshot already provided you enough information to answer
-        this spec completely, then make a decision of whether or not the spec
-        is fully passing or failing by printing the following strings:
-        - "${magicStrings.specPassed}"
-        - "${magicStrings.specFailed}"
+        this spec completely and say that the spec has passed, you will mark the
+        spec as complete with appropriate API call and reason.
+
+        If the screenshot already provided you enough information to answer
+        this spec completely and say that the spec has failed in your judgement,
+        you will mark the spec as complete with appropriate API call and reason.
+
+        You only make one API request on this turn.
+        
+        You only respond with only the JSON of the next action you will take
+        and nothing else.
+        
+        What action you will take to comply with that test spec?
     `,
     errorDescription: `
         Please provide a natural language description of the incorrect behavior
