@@ -52,7 +52,8 @@ const prompts = {
             {
                 action:"markSpecAsComplete",
                 reason:
-                    "${magicStrings.specPassed}" | "${magicStrings.specFailed}"
+                  "${magicStrings.specPassed}" | "${magicStrings.specFailed}",
+                fullProseExplanationOfReasoning100charmax: string
             },
         ]
         
@@ -71,6 +72,13 @@ const prompts = {
         You only respond with only the JSON of the next action you will take
         and nothing else. You response with JSON only, without prefixes or
         suffixes. You never prefix it with backticks or \` or anything like that.
+
+        Never forget that it may be necessary to hover over elements with your
+        mouse or go to different pages to test the full functionality of the
+        resources or their mutations that you are looking for. If you don't
+        immediately see what you are looking for, before declaring a spec 
+        failure, try to see if you can find it by interacting with the page
+        or application a little more.
         
         What action you will take to comply with that test spec?
     `,
@@ -173,7 +181,7 @@ async function newCompletion({ messages }) {
 async function initializeBrowser({ runId }) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
-        screen: {
+        viewport: {
             height: 512,
             width: 512,
         },
@@ -320,22 +328,13 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             specFulfilled = true;
             testResults.push({ spec, status: "passed" });
         } else if (feedback.includes(magicStrings.specFailed)) {
-            const errorDescription = await newCompletion({
-                messages: conversationHistory.concat([
-                    {
-                        role: "user",
-                        content: [
-                            { type: "text", text: prompts.errorDescription },
-                        ],
-                    },
-                ]),
-            });
-
-            logger.info(errorDescription.choices[0].message.content);
+            logger.info("Spec failed");
+            logger.info("Reasoning:");
+            logger.info(action?.fullProseExplanationOfReasoning100charmax);
             testResults.push({
                 spec,
                 status: "failed",
-                reason: errorDescription.choices[0].message.content,
+                reason: action?.fullProseExplanationOfReasoning100charmax,
             });
             specFulfilled = true;
         }
