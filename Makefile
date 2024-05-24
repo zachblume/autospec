@@ -8,6 +8,7 @@ stop: stoptodomvc killrealitycheck
 
 install:
 	npm install
+	npx husky install
 	npx playwright install  
 
 todomvc:
