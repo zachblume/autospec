@@ -22,8 +22,8 @@ const prompts = {
         engineer who will be testing this web app.
 
         - Only provide one JSON block.
-        - Prefix the JSON block with ${"```"}json
-        - Suffix the JSON block with ${"```"}
+        - Prefix the JSON block with \`\`\`json
+        - Suffix the JSON block with \`\`\`
         - The array should be an array of strings, with no further object
           complexity.
         - Covering the most amount of user journeys with the fewest amount of
