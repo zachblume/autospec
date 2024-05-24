@@ -62,7 +62,9 @@ const prompts = {
         this spec completely and say that the spec has failed in your judgement,
         you will mark the spec as complete with appropriate API call and reason.
 
-        You only make one API request on this turn.
+        You only make one API request on this turn. You only name an action
+        type that was enumerated above. You only provide the parameters that
+        are required for that action type enumerated above.
         
         You only respond with only the JSON of the next action you will take
         and nothing else. You response with JSON only, without prefixes or
@@ -111,8 +113,8 @@ async function main() {
         let j = 0;
         for (const spec of testPlan) {
             j++;
-            if (j > 3) {
-                throw Error("We're only allowing three specs for now.");
+            if (j > 10) {
+                throw Error("We're only allowing ten specs for now.");
             }
             await page.goto(testUrl);
             await runTestSpec({ page, runId, spec });
