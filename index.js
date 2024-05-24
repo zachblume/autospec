@@ -75,7 +75,12 @@ const prompts = {
 };
 
 async function main() {
-    const runId = Math.random().toString(36).substring(7);
+    const runId = // YYYYMMDDHHmmss_ms_4digit_random_number
+        new Date().toISOString().replace(/[^0-9]/g, "") +
+        "_" +
+        Math.floor(Math.random() * 10000)
+            .toString()
+            .padStart(4, "0");
     const { browser, context, page } = await initializeBrowser({ runId });
 
     try {
@@ -101,6 +106,32 @@ async function main() {
         await browser.close();
         console.log("Video recording should be complete.");
     }
+}
+
+async function newCompletion({ messages }) {
+    // Log all the content[n].message of the last message
+    const lastMessage = messages[messages.length - 1];
+    lastMessage.content.forEach((content) => {
+        if (content.type === "text") {
+            console.log(content.text);
+        } else {
+            console.log(content.type);
+        }
+    });
+
+    const output = await openai.chat.completions.create({
+        messages,
+        model: "gpt-4o",
+        max_tokens: 500,
+        top_p: 1,
+        temperature: 0.0,
+        n: 1,
+    });
+
+    // Log the output message
+    console.log(output.choices[0].message.content);
+
+    return output;
 }
 
 async function initializeBrowser({ runId }) {
@@ -176,15 +207,11 @@ async function createTestPlan({ videoFrames }) {
     const conversationHistory = [
         {
             role: "user",
-            content: [
-                { type: "text", text: prompts.testPlan },
-                ...videoFrames,
-            ],
+            content: [{ type: "text", text: prompts.testPlan }, ...videoFrames],
         },
     ];
 
-    const testPlanChoices = await openai.chat.completions.create({
-        model: "gpt-4o",
+    const testPlanChoices = await newCompletion({
         messages: conversationHistory,
     });
 
@@ -236,8 +263,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             ],
         });
 
-        const specFeedback = await openai.chat.completions.create({
-            model: "gpt-4o",
+        const specFeedback = await newCompletion({
             messages: conversationHistory,
         });
 
@@ -250,8 +276,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
         } else if (feedback.includes(magicStrings.specFailed)) {
-            const errorDescription = await openai.chat.completions.create({
-                model: "gpt-4o",
+            const errorDescription = await newCompletion({
                 messages: conversationHistory.concat([
                     {
                         role: "user",

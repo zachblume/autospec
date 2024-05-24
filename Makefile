@@ -17,7 +17,7 @@ stoptodomvc:
 	docker rm -f todomvc || true
 
 realitycheck:
-	node realitycheck
+	node index
 
 killrealitycheck:
-	pkill -f realitycheck.js || true
+	pkill -f index.js || true
