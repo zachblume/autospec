@@ -20,3 +20,5 @@ nvm use # Use Node.js version specified in .nvmrc
 npm install # Install dependencies
 make # Boot the docker app we are testing (todomvc) and run the agent
 ```
+
+You'll need a openai key as well in the .env as OPENAI_API_KEY
