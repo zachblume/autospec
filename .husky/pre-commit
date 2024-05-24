@@ -2,5 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 npm install
+npx jest --bail --passWithNoTests
 npx lint-staged
 npx prettier --write .
