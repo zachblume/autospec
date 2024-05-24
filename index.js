@@ -83,21 +83,23 @@ const logger = winston.createLogger({
             return `${timestamp} [${level.toUpperCase()}] - ${message}`;
         })
     ),
-    transports: [
-        new winston.transports.Console(),
-        new winston.transports.File({
-            filename: "./trajectories/combined.log",
-        }),
-    ],
+    transports: [new winston.transports.Console()],
 });
 
 async function main() {
-    const runId = // YYYYMMDDHHmmss_ms_4digit_random_number
+    const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
         "_" +
         Math.floor(Math.random() * 10000)
             .toString()
             .padStart(4, "0");
+
+    logger.add(
+        new winston.transports.File({
+            filename: `./trajectories/${runId}/combined.log`,
+        })
+    );
+
     const { browser, context, page } = await initializeBrowser({ runId });
 
     try {
@@ -126,7 +128,6 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
-    // Log all the content[n].message of the last message
     const lastMessage = messages[messages.length - 1];
     lastMessage.content.forEach((content) => {
         if (content.type === "text") {
@@ -145,7 +146,6 @@ async function newCompletion({ messages }) {
         n: 1,
     });
 
-    // Log the output message
     logger.info(output.choices[0].message.content);
 
     return output;
@@ -254,7 +254,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
 
     while (!specFulfilled && ++k < maxIterations) {
         await page.screenshot({
-            path: `trajectories/${runId}/screenshot-${k}.png`,
+            path: `./trajectories/${runId}/screenshot-${k}.png`,
         });
 
         const screenshot = fs.readFileSync(
