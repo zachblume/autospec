@@ -10,6 +10,52 @@ const openai = new OpenAI({
 });
 import fs from "fs";
 
+const magicStrings = {
+    specPassed: "The spec passed",
+    specFailed: "The spec failed",
+};
+
+const prompts = {
+    testPlan: `
+        Describe the screenshot image I'm providing, and then provide a JSON
+        array of formal checks that you will carry out as a manual QA software
+        engineer who will be testing this web app.
+
+        - Only provide one JSON block.
+        - Prefix the JSON block with ${"```"}json
+        - Suffix the JSON block with ${"```"}
+        - The array should be an array of strings, with no further object
+          complexity.
+        - Covering the most amount of user journeys with the fewest amount of
+        steps is the goal.
+    `,
+    specFeedback: ({ spec }) => `
+        I have provided you with a screenshot of the current state of the page after your last action.
+        
+        We're going to focus on this spec you provided:
+        "${spec}"
+
+        You have an API of actions you can take:
+        [
+            { action:"hoverOver", x:number, y:number },
+            { action:"clickAt", x:number, y:number },
+            { action:"keyboardInputString", string:string }
+        ]
+        
+        What is the first action you will take to comply with that test spec?
+        
+        If the screenshot already provided you enough information to answer
+        this spec completely, then make a decision of whether or not the spec
+        is fully passing or failing by printing the following strings:
+        - "${magicStrings.specPassed}"
+        - "${magicStrings.specFailed}"
+    `,
+    errorDescription: `
+        Please provide a natural language description of the incorrect behavior
+        and a suggested fix.
+    `,
+};
+
 async function main() {
     const runId = Math.random().toString(36).substring(7);
 
@@ -51,20 +97,6 @@ async function main() {
             }
         }
 
-        const prompt = `
-            Describe the screenshot image I'm providing, and then provide a
-            JSON array of formal checks that you will carry out as a manual
-            QA software engineer who will be testing this web app.
-
-            - Only provide one JSON block.
-            - Prefix the JSON block with ${"```"}json
-            - Suffix the JSON block with ${"```"}
-            - The array should be an array of strings, with
-              no further object complexity.
-            - Covering the most amount of user journeys with the fewest
-                amount of steps is the goal.
-        `;
-
         const videoFrames = await new Promise((resolve, reject) => {
             // We want to take the series of screenshots and convert them to
             // base64 encoded strings to send to OpenAI
@@ -101,11 +133,13 @@ async function main() {
         const testPlanChoices = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                // { role: "system", content: prompt },
-                // video input:
+                // { role: "system", content: prompt }, video input:
                 {
                     role: "user",
-                    content: [{ type: "text", text: prompt }, ...videoFrames],
+                    content: [
+                        { type: "text", text: prompts.testPlan },
+                        ...videoFrames,
+                    ],
                 },
             ],
         });
@@ -133,14 +167,14 @@ async function main() {
         for (const spec of testPlanJson) {
             await page.goto(testUrl);
 
-            // For each spec, we want to start on the homepage, take a screenshot
-            // ask playwright if it looks right, waht the next step is (or if
-            // the spec has been fulfilled) in the format of a playwright
-            // action to evaluate, and then execute that playwright action.
-            // Then we can repeat this loop until the spec is fulfilled.
-            // If GPT-4o raises an error, we'll ask it to provide a natural
-            // language description of the error and a suggested fix and we'll
-            // stop the current spec.
+            // For each spec, we want to start on the homepage, take a
+            // screenshot ask playwright if it looks right, waht the next step
+            // is (or if the spec has been fulfilled) in the format of a
+            // playwright action to evaluate, and then execute that playwright
+            // action. Then we can repeat this loop until the spec is
+            // fulfilled. If GPT-4o raises an error, we'll ask it to provide a
+            // natural language description of the error and a suggested fix
+            // and we'll stop the current spec.
 
             let specFulfilled = false;
             while (!specFulfilled) {
@@ -149,7 +183,7 @@ async function main() {
                 });
 
                 const screenshot = fs.readFileSync(
-                    `./trajectories/${runId}/screenshot-${i}.png`,
+                    `./trajectories/${runId}/screenshot-${i}.png`
                 );
                 const base64utf8 = screenshot.toString("base64");
                 const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
@@ -162,12 +196,7 @@ async function main() {
                             content: [
                                 {
                                     type: "text",
-                                    text: `
-                                        Please check the screenshot below and provide feedback
-                                        on whether the current state of the website is correct
-                                        or if we need to raise a flag/error to the engineers to
-                                        fix something.
-                                    `,
+                                    text: prompts.specFeedback({ spec }),
                                 },
                                 {
                                     type: "image_url",
@@ -184,13 +213,11 @@ async function main() {
                 console.log({ specFeedback });
 
                 const feedback = specFeedback.choices[0].message.content;
-                if (
-                    feedback === "The current state of the website is correct."
-                ) {
+                if (feedback.includes(magicStrings.specPassed)) {
                     specFulfilled = true;
-                } else {
-                    // Ask GPT-4o to provide a natural language description of the
-                    // error and a suggested fix.
+                } else if (feedback.includes(magicStrings.specFailed)) {
+                    // Ask GPT-4o to provide a natural language description of
+                    // the error and a suggested fix.
                     const errorDescription =
                         await openai.chat.completions.create({
                             model: "gpt-4o",
@@ -200,10 +227,7 @@ async function main() {
                                     content: [
                                         {
                                             type: "text",
-                                            text: `
-                                            Please provide a natural language description of the
-                                            error and a suggested fix.
-                                        `,
+                                            text: prompts.errorDescription,
                                         },
                                     ],
                                 },
