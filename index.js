@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import playwright from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";
+import winston from "winston";
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ const prompts = {
             { action:"clickAtCurrentLocation" },
             { action:"keyboardInputString", string:string },
             { action:"scroll", x:number, y:number },
-            { action:"wait", miliseconds: number },
+            { action:"wait", milliseconds: number },
             { action:"waitForNavigation" },
             { action:"screenshot" },
             {
@@ -74,6 +75,22 @@ const prompts = {
     `,
 };
 
+const logger = winston.createLogger({
+    level: "info",
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(({ timestamp, level, message }) => {
+            return `${timestamp} [${level.toUpperCase()}] - ${message}`;
+        })
+    ),
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({
+            filename: "./trajectories/combined.log",
+        }),
+    ],
+});
+
 async function main() {
     const runId = // YYYYMMDDHHmmss_ms_4digit_random_number
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -98,13 +115,13 @@ async function main() {
             await runTestSpec({ page, runId, spec });
         }
 
-        console.log("Test complete");
+        logger.info("Test complete");
     } catch (e) {
-        console.error("Test error", e);
+        logger.error("Test error", e);
     } finally {
         await context.close();
         await browser.close();
-        console.log("Video recording should be complete.");
+        logger.info("Video recording should be complete.");
     }
 }
 
@@ -113,9 +130,9 @@ async function newCompletion({ messages }) {
     const lastMessage = messages[messages.length - 1];
     lastMessage.content.forEach((content) => {
         if (content.type === "text") {
-            console.log(content.text);
+            logger.info(content.text);
         } else {
-            console.log(content.type);
+            logger.info(content.type);
         }
     });
 
@@ -129,7 +146,7 @@ async function newCompletion({ messages }) {
     });
 
     // Log the output message
-    console.log(output.choices[0].message.content);
+    logger.info(output.choices[0].message.content);
 
     return output;
 }
@@ -287,7 +304,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                 ]),
             });
 
-            console.log(errorDescription.choices[0].message.content);
+            logger.info(errorDescription.choices[0].message.content);
             specFulfilled = true;
         }
     }
