@@ -164,7 +164,12 @@ async function main() {
             }
         }
 
+        let j = 0;
         for (const spec of testPlanJson) {
+            j++
+            if (j > 3) {
+                throw Error("We're only allowing three specs for now.");
+            }
             await page.goto(testUrl);
 
             // For each spec, we want to start on the homepage, take a
@@ -177,10 +182,10 @@ async function main() {
             // and we'll stop the current spec.
 
             let specFulfilled = false;
-            let j = 0;
-            // For now, we're only allowing one spec to be fulfilled and
+            let k = 0;
+            // For now, we're only allowing several spec to be fulfilled and
             // only allowing 10 iterations of the loop for cost reasons.
-            while (!specFulfilled && ++j < 10) {
+            while (!specFulfilled && ++k < 10) {
                 await page.screenshot({
                     path: `trajectories/${runId}/screenshot-${i}.png`,
                 });
@@ -250,7 +255,6 @@ async function main() {
                 }
             }
 
-            throw Error("We're only allowing one spec for now.");
         }
 
         // Otherwise, we'll exit cleanly and output a video of the entire test
