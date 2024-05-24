@@ -37,25 +37,40 @@ const prompts = {
         I have provided you with a 512x512 screenshot of the current state of
         the page after faithfully executing the last API call you requested.
         
-        We're going to focus on this spec you provided:
+        We're continuing to focus on this spec you previously provided:
         "${spec}"
 
         You have an API of actions you can take:
+        type Action = {
+            action: String;
+            x?: Number;
+            y?: Number;
+            string?: String;
+            key?: String;
+            deltaX?: Number;
+            deltaY?: Number;
+            milliseconds?: Number;
+            reason?: String;
+            fullProseExplanationOfReasoning100charmax?: String;
+        }
+
+        const possibleActions: Action[] =
         [
-            { action:"moveMouseTo", x:number, y:number },
+            { action:"moveMouseTo"; x:Number; y:Number },
             { action:"clickAtCurrentLocation" },
-            { action:"keyboardInputString", string:string },
-            { action:"keyboardInputSingleKey", key:string },
-            { action:"scroll", deltaX:number, deltaY:number },
-            { action:"wait", milliseconds: number },
+            { action:"doubleClickAtCurrentLocation" },
+            { action:"keyboardInputString"; string:String },
+            { action:"keyboardInputSingleKey"; key:String },
+            { action:"scroll"; deltaX:Number; deltaY:Number },
+            { action:"wait"; milliseconds: Number },
             { action:"waitForNavigation" },
             {
-                action:"markSpecAsComplete",
+                action:"markSpecAsComplete";
                 reason:
-                  "${magicStrings.specPassed}" | "${magicStrings.specFailed}",
-                fullProseExplanationOfReasoning100charmax: string
+                  "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
+                fullProseExplanationOfReasoning100charmax: String
             },
-        ]
+        ];
         
         If the screenshot already provided you enough information to answer
         this spec completely and say that the spec has passed, you will mark the
@@ -68,9 +83,17 @@ const prompts = {
         You only make one API request on this turn. You only name an action
         type that was enumerated above. You only provide the parameters that
         are required for that action type enumerated above.
+
+        A PlanActionStep is a JSON object that follows the following schema:
+
+        type PlanActionStep =
+        {
+            planningThoughtAboutTheActionIWillTake: String;
+            action: Action;
+        }
         
-        You only respond with only the JSON of the next action you will take
-        and nothing else. You response with JSON only, without prefixes or
+        You only respond with only the JSON of the next PlanActionStep you will take
+        and nothing else. You response with the JSON object only, without prefixes or
         suffixes. You never prefix it with backticks or \` or anything like that.
 
         Never forget that it may be necessary to hover over elements with your
@@ -80,20 +103,22 @@ const prompts = {
         failure, try to see if you can find it by interacting with the page
         or application a little more.
 
-        When specifying X and Y coordinates, take great care to specify them 
-        correctly. The origin is the top left corner of the screen, and the
-        X coordinate increases to the right, and the Y coordinate increases
-        downwards. The coordinates are in pixels. The top left corner of the
-        screen is (0, 0). The bottom right corner of the screen is (511, 511).
-        When you are trying to hover or click on an element, you most probably
-        want to specify the coordinates of the center of the element as
-        conservatively as possible.
-        
+        It is extremely important that you describe coordinates based precisely
+        on the screenshot you were just provided with, and never based on
+        general intuition, or making up numbers as an example. You always hover
+        and click towards the center of the elements you are looking for
+        instead of the edges to be conservative and ensure you don't miss.
+
+        If you find yourself taking the same action twice in a row because
+        you don't think the first action was successful, you should
+        vary the action slightly to see if that helps, rather than
+        repeating the same action endlessly. Eventually you will need
+        to mark the spec as failed if you can't find the element you
+        are looking for.
+
+        Lives are depending on your precision and accuracy in this task.
+
         What action you will take to comply with that test spec?
-    `,
-    errorDescription: `
-        Please provide a natural language description of the incorrect behavior
-        and a suggested fix.
     `,
 };
 
@@ -145,8 +170,8 @@ async function main() {
         let j = 0;
         for (const spec of testPlan) {
             j++;
-            if (j > 10) {
-                throw Error("We're only allowing ten specs for now.");
+            if (j > 3) {
+                break;
             }
             await page.goto(testUrl);
             await runTestSpec({ page, runId, spec });
@@ -164,14 +189,11 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
-    const lastMessage = messages[messages.length - 1];
-    lastMessage.content.forEach((content) => {
-        if (content.type === "text") {
-            logger.info(content.text);
-        } else {
-            logger.info(content.type);
-        }
-    });
+    // const lastMessage = messages[messages.length - 1];
+    // lastMessage.content.forEach((content) => { if (content.type === "text")
+    //     { logger.info(content.text); } else { logger.info(content.type);
+    //     }
+    // });
 
     const output = await openai.chat.completions.create({
         messages,
@@ -191,6 +213,10 @@ async function initializeBrowser({ runId }) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
         viewport: {
+            height: 512,
+            width: 512,
+        },
+        screen: {
             height: 512,
             width: 512,
         },
@@ -219,6 +245,7 @@ async function visitPages({ page, runId }) {
         await page.goto(url);
         await page.screenshot({
             path: `trajectories/${runId}/screenshot-${i}.png`,
+            caret: "initial",
         });
         const links = await page.$$eval("a", (as) => as.map((a) => a.href));
         for (const link of links) {
@@ -251,7 +278,7 @@ async function getVideoFrames({ runId }) {
                         type: "image_url",
                         image_url: {
                             url: `data:image/png;base64,${base64utf8}`,
-                            detail: "low",
+                            // detail: "low",
                         },
                     };
                 });
@@ -296,6 +323,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     while (!specFulfilled && ++k < maxIterations) {
         await page.screenshot({
             path: `./trajectories/${runId}/screenshot-${k}.png`,
+            caret: "initial",
         });
 
         const screenshot = fs.readFileSync(
@@ -315,7 +343,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                     type: "image_url",
                     image_url: {
                         url: screenshotImageUrl,
-                        detail: "low",
+                        // detail: "low",
                     },
                 },
             ],
@@ -333,7 +361,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
 
         const action = JSON.parse(feedback);
         actionsTaken.push(action);
-        await executeAction({ page, action });
+        await executeAction({ page, action: action.action });
 
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
@@ -341,15 +369,28 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         } else if (feedback.includes(magicStrings.specFailed)) {
             logger.info("Spec failed");
             logger.info("Reasoning:");
-            logger.info(action?.fullProseExplanationOfReasoning100charmax);
+            logger.info(
+                action?.action?.fullProseExplanationOfReasoning100charmax,
+            );
             testResults.push({
                 spec,
                 status: "failed",
-                reason: action?.fullProseExplanationOfReasoning100charmax,
+                reason: action?.action
+                    ?.fullProseExplanationOfReasoning100charmax,
                 actions: actionsTaken,
             });
             specFulfilled = true;
         }
+    }
+
+    if (!specFulfilled) {
+        logger.info(`Spec failed due to max iterations (${maxIterations})`);
+        testResults.push({
+            spec,
+            status: "failed",
+            reason: `Max iterations (${maxIterations}) reached`,
+            actions: actionsTaken,
+        });
     }
 }
 
@@ -364,6 +405,13 @@ async function executeAction({ page, action }) {
             await page.mouse.up();
             await page.waitForTimeout(100);
             break;
+        case "doubleClickAtCurrentLocation":
+            await page.mouse.down();
+            await page.mouse.up();
+            await page.mouse.down();
+            await page.mouse.up();
+            await page.waitForTimeout(100);
+            break;
         case "keyboardInputString":
             await page.keyboard.type(action.string);
             // add 100ms delay after typing
@@ -374,7 +422,7 @@ async function executeAction({ page, action }) {
             await page.waitForTimeout(100);
             break;
         case "scroll":
-            await page.wheel({ deltaX: action.deltaX, deltaY: action.deltaY });
+            await page.mouse.wheel(action.deltaX, action.deltaY);
             await page.waitForTimeout(100);
             break;
         case "wait":
@@ -387,7 +435,8 @@ async function executeAction({ page, action }) {
             logger.info(`Spec marked as complete: ${action.reason}`);
             break;
         default:
-            throw new Error(`Unknown action: ${action.action}`);
+            console.error("Unknown action", action);
+            break;
     }
 }
 
@@ -401,7 +450,13 @@ function printTestResults() {
         logger.info(`${status} ${index + 1}. ${result.spec}`);
         result.actions.forEach((action, innerIndex) => {
             logger.info(
-                `  ${index + 1}.${innerIndex + 1}) ${Object.entries(action)
+                `  ${index + 1}.${innerIndex + 1}) ${Object.entries({
+                    ...action.action,
+                    ...{
+                        planningThoughtAboutTheActionIWillTake:
+                            action.planningThoughtAboutTheActionIWillTake,
+                    },
+                })
                     .map(([key, value]) => `${key}: ${value}`)
                     .join(", ")}`,
             );
