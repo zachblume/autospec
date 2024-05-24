@@ -26,25 +26,6 @@ async function main() {
         await page.goto(testUrl);
         await page.waitForTimeout(1000); // Wait to capture some content
 
-        // We'll click all the links in the site and take screenshots and
-        // provide them to GPT-4o to help it make a plan based on mapping out
-        // which resources and mutations we should check by what series of
-        // actions. The test plan will be formulated as an array of string
-        // specs.
-        //
-        // Armed with the initial mapping video and test plan, we'll go through
-        // each of the test plans specs and execute the most likely next
-        // Playwright step one at a time. After each step, we'll take a
-        // screenshot and ask GPT-4o whether or not the screenshot looks
-        // correct, i.e., a boolean of whether GPT-4o would like to raise an
-        // error as a manual QA agent.
-        //
-        // If GPT-4o raises an error, we'll ask it to provide a natural
-        // language description of the error and a suggested fix.
-        //
-        // Otherwise, we'll exit cleanly and output a video of the entire test
-        // run.
-
         // Let's map out the basic pages in question
         let i = 0;
         const max = 1;
@@ -69,22 +50,6 @@ async function main() {
                 }
             }
         }
-
-        // Let's provide this video to GPT-4o to generate a natural language
-        // test plan, mapping out which resources and mutations we should check
-        // by what series of actions. The test plan will be formulated as an
-        // array of string specs.
-        //     const prompt = `
-        // You are a QA engineer at a software company. You have been tasked with
-        // testing a website at ${testUrl}. You have been provided a video of the
-        // website. Please generate a natural language test plan for the website,
-        // mapping out which resources and mutations we should check by what series
-        // of actions. The test plan should be formulated as an array of string specs,
-        // one for each user journey you would like to test. Then, we'll execute the
-        // test plan step by step and ask you again for feedback as to whether the
-        // current state of the website is correct or we need to raise a flag/error
-        // to the engineers to fix something.
-        // `;
 
         const prompt = `
             Describe the screenshot image I'm providing, and then provide a
@@ -164,13 +129,6 @@ async function main() {
                 throw new Error("Test plan spec is not a string");
             }
         }
-
-        // Armed with the initial mapping video and test plan, we'll go through
-        // each of the test plans specs and execute the most likely next
-        // Playwright step one at a time. After each step, we'll take a
-        // screenshot and ask GPT-4o whether or not the screenshot looks
-        // correct, i.e., a boolean of whether GPT-4o would like to raise an
-        // error as a manual QA agent.
 
         for (const spec of testPlanJson) {
             await page.goto(testUrl);
