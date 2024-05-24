@@ -79,6 +79,15 @@ const prompts = {
         immediately see what you are looking for, before declaring a spec 
         failure, try to see if you can find it by interacting with the page
         or application a little more.
+
+        When specifying X and Y coordinates, take great care to specify them 
+        correctly. The origin is the top left corner of the screen, and the
+        X coordinate increases to the right, and the Y coordinate increases
+        downwards. The coordinates are in pixels. The top left corner of the
+        screen is (0, 0). The bottom right corner of the screen is (511, 511).
+        When you are trying to hover or click on an element, you most probably
+        want to specify the coordinates of the center of the element as
+        conservatively as possible.
         
         What action you will take to comply with that test spec?
     `,
@@ -282,6 +291,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     let specFulfilled = false;
     let k = 0;
     const conversationHistory = [];
+    const actionsTaken = [];
 
     while (!specFulfilled && ++k < maxIterations) {
         await page.screenshot({
@@ -322,11 +332,12 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         });
 
         const action = JSON.parse(feedback);
+        actionsTaken.push(action);
         await executeAction({ page, action });
 
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
-            testResults.push({ spec, status: "passed" });
+            testResults.push({ spec, status: "passed", actions: actionsTaken });
         } else if (feedback.includes(magicStrings.specFailed)) {
             logger.info("Spec failed");
             logger.info("Reasoning:");
@@ -335,6 +346,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                 spec,
                 status: "failed",
                 reason: action?.fullProseExplanationOfReasoning100charmax,
+                actions: actionsTaken,
             });
             specFulfilled = true;
         }
@@ -387,19 +399,14 @@ function printTestResults() {
         const status =
             result.status === "passed" ? chalk.green("✔") : chalk.red("✘");
         logger.info(`${status} ${index + 1}. ${result.spec}`);
-    });
-
-    const failedTests = testResults.filter(
-        (result) => result.status === "failed",
-    );
-
-    if (failedTests.length > 0) {
-        logger.info(chalk.bold("\nFailures:"));
-        failedTests.forEach((result, index) => {
-            logger.info(chalk.red(`\n${index + 1}. ${result.spec}`));
-            logger.info(result.reason);
+        result.actions.forEach((action, innerIndex) => {
+            logger.info(
+                `  ${index + 1}.${innerIndex + 1}) ${Object.entries(action)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(", ")}`,
+            );
         });
-    }
+    });
 }
 
 main().then(() => null);
