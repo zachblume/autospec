@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import winston from "winston";
 import chalk from "chalk";
+import stripAnsi from "strip-ansi";
 
 dotenv.config();
 
@@ -79,6 +80,11 @@ const prompts = {
     `,
 };
 
+const removeColorsFormat = winston.format((info) => {
+    info.message = stripAnsi(info.message);
+    return info;
+});
+
 const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
@@ -103,6 +109,12 @@ async function main() {
     logger.add(
         new winston.transports.File({
             filename: `./trajectories/${runId}/combined.log`,
+            format: winston.format.combine(
+                removeColorsFormat(),
+                winston.format.printf(({ timestamp, level, message }) => {
+                    return `${timestamp} [${level.toUpperCase()}] - ${message}`;
+                }),
+            ),
         }),
     );
 
@@ -369,12 +381,13 @@ async function executeAction({ page, action }) {
 }
 
 function printTestResults() {
-    console.log(chalk.bold("\nTest Summary:"));
+    logger.info("\n\n");
+    logger.info(chalk.bold("Test Summary:"));
 
     testResults.forEach((result, index) => {
         const status =
             result.status === "passed" ? chalk.green("✔") : chalk.red("✘");
-        console.log(`${status} ${result.spec}`);
+        logger.info(`${status} ${index + 1}. ${result.spec}`);
     });
 
     const failedTests = testResults.filter(
@@ -382,10 +395,10 @@ function printTestResults() {
     );
 
     if (failedTests.length > 0) {
-        console.log(chalk.bold("\nFailures:"));
+        logger.info(chalk.bold("\nFailures:"));
         failedTests.forEach((result, index) => {
-            console.log(chalk.red(`\n${index + 1}. ${result.spec}`));
-            console.log(result.reason);
+            logger.info(chalk.red(`\n${index + 1}. ${result.spec}`));
+            logger.info(result.reason);
         });
     }
 }
