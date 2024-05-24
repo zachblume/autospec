@@ -23,9 +23,8 @@ const prompts = {
         array of formal checks that you will carry out as a manual QA software
         engineer who will be testing this web app.
 
-        - Only provide one JSON block.
-        - Prefix the JSON block with \`\`\`json
-        - Suffix the JSON block with \`\`\`
+        - You only respond with only the JSON array of your test plan and
+          nothing else, without prefixes or suffixes.
         - The array should be an array of strings, with no further object
           complexity.
         - Covering the most amount of user journeys with the fewest amount of
@@ -43,7 +42,7 @@ const prompts = {
             { action:"moveMouseTo", x:number, y:number },
             { action:"clickAtCurrentLocation" },
             { action:"keyboardInputString", string:string },
-            { action:"scroll", x:number, y:number },
+            { action:"scroll", deltaX:number, deltaY:number },
             { action:"wait", milliseconds: number },
             { action:"waitForNavigation" },
             { action:"screenshot" },
@@ -65,7 +64,8 @@ const prompts = {
         You only make one API request on this turn.
         
         You only respond with only the JSON of the next action you will take
-        and nothing else.
+        and nothing else. You response with JSON only, without prefixes or
+        suffixes. You never prefix it with backticks or \` or anything like that.
         
         What action you will take to comply with that test spec?
     `,
@@ -233,7 +233,7 @@ async function createTestPlan({ videoFrames }) {
     });
 
     const testPlan = testPlanChoices.choices[0].message.content;
-    const testPlanJson = JSON.parse(testPlan.match(/```json\n(.*?)\n```/s)[1]);
+    const testPlanJson = JSON.parse(testPlan);
 
     if (!Array.isArray(testPlanJson)) {
         throw new Error("Test plan is not an array");
@@ -290,6 +290,9 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             content: feedback,
         });
 
+        const action = JSON.parse(feedback);
+        await executeAction({ page, action });
+
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
         } else if (feedback.includes(magicStrings.specFailed)) {
@@ -307,6 +310,35 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             logger.info(errorDescription.choices[0].message.content);
             specFulfilled = true;
         }
+    }
+}
+
+async function executeAction({ page, action }) {
+    switch (action.action) {
+        case "moveMouseTo":
+            await page.mouse.move(action.x, action.y);
+            break;
+        case "clickAtCurrentLocation":
+            await page.mouse.down();
+            await page.mouse.up();
+            break;
+        case "keyboardInputString":
+            await page.keyboard.type(action.string);
+            break;
+        case "scroll":
+            await page.wheel({ deltaX: action.deltaX, deltaY: action.deltaY });
+            break;
+        case "wait":
+            await page.waitForTimeout(action.milliseconds);
+            break;
+        case "waitForNavigation":
+            await page.waitForNavigation();
+            break;
+        case "markSpecAsComplete":
+            logger.info(`Spec marked as complete: ${action.reason}`);
+            break;
+        default:
+            throw new Error(`Unknown action: ${action.action}`);
     }
 }
 
