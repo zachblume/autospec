@@ -76,12 +76,12 @@ const prompts = {
 
 async function main() {
     const runId = Math.random().toString(36).substring(7);
-    const { browser, context, page } = await initializeBrowser(runId);
+    const { browser, context, page } = await initializeBrowser({ runId });
 
     try {
-        await visitPages(page, runId);
-        const videoFrames = await getVideoFrames(runId);
-        const testPlan = await createTestPlan(videoFrames);
+        await visitPages({ page, runId });
+        const { videoFrames } = await getVideoFrames({ runId });
+        const { testPlan } = await createTestPlan({ videoFrames });
 
         let j = 0;
         for (const spec of testPlan) {
@@ -90,7 +90,7 @@ async function main() {
                 throw Error("We're only allowing three specs for now.");
             }
             await page.goto(testUrl);
-            await runTestSpec(page, runId, spec);
+            await runTestSpec({ page, runId, spec });
         }
 
         console.log("Test complete");
@@ -103,7 +103,7 @@ async function main() {
     }
 }
 
-async function initializeBrowser(runId) {
+async function initializeBrowser({ runId }) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
         recordVideo: {
@@ -115,7 +115,7 @@ async function initializeBrowser(runId) {
     return { browser, context, page };
 }
 
-async function visitPages(page, runId) {
+async function visitPages({ page, runId }) {
     await page.goto(testUrl);
     await page.waitForTimeout(1000);
 
@@ -145,7 +145,7 @@ async function visitPages(page, runId) {
     }
 }
 
-async function getVideoFrames(runId) {
+async function getVideoFrames({ runId }) {
     return new Promise((resolve, reject) => {
         fs.readdir(`./trajectories/${runId}`, (err, files) => {
             if (err) {
@@ -167,12 +167,12 @@ async function getVideoFrames(runId) {
                         },
                     };
                 });
-            resolve(frames);
+            resolve({ videoFrames: frames });
         });
     });
 }
 
-async function createTestPlan(videoFrames) {
+async function createTestPlan({ videoFrames }) {
     const testPlanChoices = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -198,10 +198,10 @@ async function createTestPlan(videoFrames) {
         }
     });
 
-    return testPlanJson;
+    return { testPlan: testPlanJson };
 }
 
-async function runTestSpec(page, runId, spec, maxIterations = 10) {
+async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     let specFulfilled = false;
     let k = 0;
 
