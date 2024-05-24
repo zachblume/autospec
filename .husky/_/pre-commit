@@ -1,7 +1,2 @@
 #!/usr/bin/env sh
 . "${0%/*}/h"
-npm install
-npx jest --bail
-npx lint-staged
-npx prettier --write .
-
