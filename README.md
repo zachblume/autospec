@@ -13,7 +13,7 @@ raise an error.
 -   This allows RC to test _new_ behavior immediately after implementation, instead of just testing for regressions.
 -   This means RC requires no configuration.
 
-### Development
+### Use the demonstration
 
 ```bash
 # Copy the sample .env file, you'll need to fill in the OPENAI_API_KEY
@@ -27,3 +27,7 @@ nvm use
 # and run the agent:
 make
 ```
+
+### Development
+
+The main logic is currently in [index.js](index.js)
