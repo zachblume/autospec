@@ -34,14 +34,19 @@ const prompts = {
         - Covering the most amount of user journeys with the fewest amount of
         steps is the goal.
     `,
-    specFeedback: ({ spec }) => `
-        I have provided you with a 512x512 screenshot of the current state of
+    specFeedback: ({ spec, currentX, currentY }) => `
+        I have provided you with a 1024x1024 screenshot of the current state of
         the page after faithfully executing the last API call you requested.
 
-        The red dot is your current mouse cursor position.
+        The red dot in the screenshot is your current mouse cursor position. 
+        I can tell you that the X and Y coordinates of the mouse cursor are
+        (${currentX}, ${currentY}) in the 1024x1024 coordinate system.
 
-        Focus on inputs is not always clearly visible, so you'll need to infer
-        it based on your previous actions and what you can see.
+        Focus on inputs is not always clearly visible. You always check that
+        the mouse looks like it is inside an input or button or link or
+        whatever element it was that you are trying to click on before you
+        go ahea dand click. You always make sure to not click on wrong things
+        by accident.
         
         We're continuing to focus on this spec you previously provided:
         "${spec}"
@@ -184,12 +189,18 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
+    // const lastMessage = messages[messages.length - 1];
+    // // log the type==="text" content items of the last message
+    // lastMessage.content
+    //     .filter((item) => item.type === "text")
+    //     .forEach((item) => logger.info(item.text));
+
     const output = await openai.chat.completions.create({
         messages,
         model: "gpt-4o",
         max_tokens: 500,
-        top_p: 1,
-        temperature: 0.0,
+        // top_p: 1,
+        // temperature: 0.0,
         n: 1,
     });
 
@@ -202,16 +213,16 @@ async function initializeBrowser({ runId }) {
     const browser = await playwright.chromium.launch();
     const context = await browser.newContext({
         viewport: {
-            height: 512,
-            width: 512,
+            height: 1024,
+            width: 1024,
         },
         screen: {
-            height: 512,
-            width: 512,
+            height: 1024,
+            width: 1024,
         },
         recordVideo: {
             dir: `./trajectories/${runId}`,
-            size: { width: 512, height: 512 },
+            size: { width: 1024, height: 1024 },
         },
     });
     const page = await context.newPage();
@@ -332,17 +343,23 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         const base64utf8 = screenshot.toString("base64");
         const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
 
+        const { x: currentX, y: currentY } = await page.evaluate(() =>
+            window.getMousePosition(),
+        );
+        logger.info(`Current mouse position: (${currentX}, ${currentY})`);
+
         conversationHistory.push({
             role: "user",
             content: [
                 {
                     type: "text",
-                    text: prompts.specFeedback({ spec }),
+                    text: prompts.specFeedback({ spec, currentX, currentY }),
                 },
                 {
                     type: "image_url",
                     image_url: {
                         url: screenshotImageUrl,
+                        // detail: "low",
                     },
                 },
             ],
@@ -439,6 +456,7 @@ async function executeAction({ page, action }) {
 }
 
 async function saveScreenshotWithCursor({ page, path }) {
+    // TODO: if the page is navigating while page.evaluate is running, it will throw an error
     const { x, y } = await page.evaluate(() => window.getMousePosition());
     const screenshotBuffer = await page.screenshot();
     const img = await loadImage(screenshotBuffer);
@@ -447,7 +465,7 @@ async function saveScreenshotWithCursor({ page, path }) {
     ctx.drawImage(img, 0, 0);
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.arc(x, y, 1, 0, Math.PI * 2);
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
     const out = fs.createWriteStream(path);
     const stream = canvas.createPNGStream();
