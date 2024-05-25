@@ -43,11 +43,19 @@ const prompts = {
         (${currentX}, ${currentY}) in the 1024x1024 coordinate system.
 
         Focus on inputs is not always clearly visible. You always check that
-        the mouse looks like it is inside an input or button or link or
-        whatever element it was that you are trying to click on before you
-        go ahea dand click. You always make sure to not click on wrong things
-        by accident.
-        
+        the mouse cursor is correctly positioned over the target element before
+        you proceed with any clicking or typing actions. If the cursor is not 
+        correctly positioned, you must adjust it first. 
+
+        Ignore any irrelevant text or elements on the page that do not pertain
+        to the current spec and step you're trying to reason about. Your goal
+        is to interact only with the elements necessary to fulfill the current
+        spec.
+
+        There is an overlaid grid on the screenshot that is not part of the
+        actual screenshot. It is only there to help you reason about the
+        coordinates of the screenshot. Each grid box is 32x32 pixels.
+
         We're continuing to focus on this spec you previously provided:
         "${spec}"
 
@@ -104,7 +112,7 @@ const prompts = {
         }
         
         You only respond with only the JSON of the next PlanActionStep you will take
-        and nothing else. You response with the JSON object only, without prefixes or
+        and nothing else. You respond with the JSON object only, without prefixes or
         suffixes. You never prefix it with backticks or \` or anything like that.
 
         Never forget that it may be necessary to hover over elements with your
@@ -117,8 +125,6 @@ const prompts = {
         You always adjust your mouse position to the correct location before
         clicking or proceeding with interactions if it seems like your mouse
         position is off.
-
-        What action you will take to comply with that test spec?
     `,
 };
 
@@ -467,6 +473,32 @@ async function saveScreenshotWithCursor({ page, path }) {
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
+
+    // Add grid of 32x32 pixels and label each box with its coordinates
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < img.width; i += 32) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, img.height);
+        ctx.stroke();
+    }
+    for (let i = 0; i < img.height; i += 32) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(img.width, i);
+        ctx.stroke();
+    }
+    for (let i = 0; i < img.width; i += 32) {
+        for (let j = 0; j < img.height; j += 32) {
+            ctx.font = "5px Arial";
+            // ctx.fillStyle = "black";
+            // make it somewhat transparent
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.fillText(`${i},${j}`, i + 2, j + 10);
+        }
+    }
+
     const out = fs.createWriteStream(path);
     const stream = canvas.createPNGStream();
     stream.pipe(out);
