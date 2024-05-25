@@ -28,6 +28,5 @@ killrealitycheck:
 	pkill -f index.js || true
 
 clean:
-  # delete all the files inside trajectories folder except for .gitkeep
-	find trajectories/ -type f -not -name '.gitkeep' -delete
+	rm -rf trajectories
 	
