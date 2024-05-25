@@ -206,7 +206,7 @@ async function newCompletion({ messages }) {
         model: "gpt-4o",
         max_tokens: 500,
         // top_p: 1,
-        // temperature: 0.0,
+        temperature: 0.0,
         n: 1,
     });
 
