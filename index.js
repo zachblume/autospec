@@ -21,35 +21,47 @@ const magicStrings = {
     specFailed: "The spec failed",
 };
 
-const initialSystemPrompt = `
-You are an automated QA agent tasked with testing a web application. Here are your instructions:
+const initialSystemPrompt = /*mdx*/ ` You are an automated QA agent tasked
+with testing a web application. Here are your instructions:
 
-1. Describe the 1024x1024 screenshot image I'm providing, and then provide a JSON array of formal checks that you will carry out as a manual QA software engineer who will be testing this web app.
+1. Describe the 1024x1024 screenshot image I'm providing, and then provide a
+   JSON array of formal checks that you will carry out as a manual QA
+   software engineer who will be testing this web app.
 
-    - You only respond with only the JSON array of your test plan and nothing else, without prefixes or suffixes.
-    - The array should be an array of strings, with no further object complexity.
-    - Covering the most amount of user journeys with the fewest amount of steps is the goal.
+    - You only respond with only the JSON array of your test plan and
+      nothing else, without prefixes or suffixes.
+    - The array should be an array of strings, with no further object
+      complexity.
+    - Covering the most amount of user journeys with the fewest amount of
+      steps is the goal.
 
-2. When provided with a 1024x1024 screenshot of the current state of the page, your goal is to interact only with the elements necessary to fulfill the current spec.
+2. When provided with a 1024x1024 screenshot of the current state of the
+   page, your goal is to interact only with the elements necessary to
+   fulfill the current spec.
 
-    - The red dot in the screenshot is your current mouse cursor position. The X and Y coordinates of the mouse cursor are in the 1024x1024 coordinate system.
-    - Focus on inputs is not always clearly visible. You always check that the mouse cursor is correctly positioned over the target element before you proceed with any clicking or typing actions. If the cursor is not correctly positioned, you must adjust it first.
-    - Ignore any irrelevant text or elements on the page that do not pertain to the current spec and step you're trying to reason about.
-    - Never forget that it may be necessary to hover over elements with your mouse or go to different pages to test the full functionality of the resources or their mutations that you are looking for. If you don't immediately see what you are looking for, before declaring a spec failure, try to see if you can find it by interacting with the page or application a little more.
-    - You always adjust your mouse position to the correct location before clicking or proceeding with interactions if it seems like your mouse position is off.
+    - The red dot in the screenshot is your current mouse cursor position.
+      The X and Y coordinates of the mouse cursor are in the 1024x1024
+      coordinate system.
+    - Focus on inputs is not always clearly visible. You always check that
+      the mouse cursor is correctly positioned over the target element
+      before you proceed with any clicking or typing actions. If the cursor
+      is not correctly positioned, you must adjust it first.
+    - Ignore any irrelevant text or elements on the page that do not pertain
+      to the current spec and step you're trying to reason about.
+    - Never forget that it may be necessary to hover over elements with your
+      mouse or go to different pages to test the full functionality of the
+      resources or their mutations that you are looking for. If you don't
+      immediately see what you are looking for, before declaring a spec
+      failure, try to see if you can find it by interacting with the page or
+      application a little more.
+    - You always adjust your mouse position to the correct location before
+      clicking or proceeding with interactions if it seems like your mouse
+      position is off.
 
-3. You have an API of actions you can take:
-    type Action = {
-        action: String;
-        x?: Number;
-        y?: Number;
-        string?: String;
-        key?: String;
-        deltaX?: Number;
-        deltaY?: Number;
-        milliseconds?: Number;
-        reason?: String;
-        fullProseExplanationOfReasoning100charmax?: String;
+3. You have an API of actions you can take: type Action = { action: String;
+    x?: Number; y?: Number; string?: String; key?: String; deltaX?: Number;
+    deltaY?: Number; milliseconds?: Number; reason?: String;
+    fullProseExplanationOfReasoning100charmax?: String;
     }
 
     The possible actions are:
@@ -70,9 +82,15 @@ You are an automated QA agent tasked with testing a web application. Here are yo
         },
     ];
 
-    If the screenshot already provided you enough information to answer this spec completely and say that the spec has passed, you will mark the spec as complete with appropriate API call and reason.
-    If the screenshot already provided you enough information to answer this spec completely and say that the spec has failed in your judgement, you will mark the spec as complete with appropriate API call and reason.
-    You only make one API request on this turn. You only name an action type that was enumerated above. You only provide the parameters that are required for that action type enumerated above.
+    If the screenshot already provided you enough information to answer this
+    spec completely and say that the spec has passed, you will mark the spec
+    as complete with appropriate API call and reason. If the screenshot
+    already provided you enough information to answer this spec completely
+    and say that the spec has failed in your judgement, you will mark the
+    spec as complete with appropriate API call and reason. You only make one
+    API request on this turn. You only name an action type that was
+    enumerated above. You only provide the parameters that are required for
+    that action type enumerated above.
 
     A PlanActionStep is a JSON object that follows the following schema:
 
@@ -82,7 +100,10 @@ You are an automated QA agent tasked with testing a web application. Here are yo
         action: Action;
     }
     
-    You only respond with only the JSON of the next PlanActionStep you will take and nothing else. You respond with the JSON object only, without prefixes or suffixes. You never prefix it with backticks or \` or anything like that.
+    You only respond with only the JSON of the next PlanActionStep you will
+    take and nothing else. You respond with the JSON object only, without
+    prefixes or suffixes. You never prefix it with backticks or \` or
+    anything like that.
 `;
 
 const removeColorsFormat = winston.format((info) => {
@@ -116,9 +137,10 @@ async function main() {
             filename: `./trajectories/${runId}/combined.log`,
             format: winston.format.combine(
                 removeColorsFormat(),
-                winston.format.printf(({ timestamp, level, message }) => {
-                    return `${timestamp} [${level.toUpperCase()}] - ${message}`;
-                }),
+                winston.format.printf(
+                    ({ timestamp, level, message }) =>
+                        `${timestamp} [${level.toUpperCase()}] - ${message}`,
+                ),
             ),
         }),
     );
@@ -152,11 +174,10 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
-    // const lastMessage = messages[messages.length - 1];
-    // // log the type==="text" content items of the last message
-    // lastMessage.content
-    //     .filter((item) => item.type === "text")
-    //     .forEach((item) => logger.info(item.text));
+    // const lastMessage = messages[messages.length - 1]; // log the
+    // type==="text" content items of the last message lastMessage.content
+    // .filter((item) => item.type === "text") .forEach((item) =>
+    // logger.info(item.text));
 
     const output = await openai.chat.completions.create({
         messages,
@@ -331,7 +352,10 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             content: [
                 {
                     type: "text",
-                    text: `We're continuing to focus on this spec you previously provided: "${spec}"`,
+                    text: `
+                        We're continuing to focus on this spec you previously
+                        provided: "${spec}"
+                    `,
                 },
                 {
                     type: "image_url",
@@ -341,7 +365,11 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                 },
                 {
                     type: "text",
-                    text: `The X and Y coordinates of the mouse cursor are (${currentX}, ${currentY}) in the 1024x1024 coordinate system.`,
+                    text: `
+                        The X and Y coordinates of the mouse cursor are
+                        (${currentX}, ${currentY}) in the 1024x1024 coordinate
+                        system.
+                    `,
                 },
             ],
         });
@@ -437,7 +465,8 @@ async function executeAction({ page, action }) {
 }
 
 async function saveScreenshotWithCursor({ page, path }) {
-    // TODO: if the page is navigating while page.evaluate is running, it will throw an error
+    // TODO: if the page is navigating while page.evaluate is running, it will
+    // throw an error
     const { x, y } = await page.evaluate(() => window.getMousePosition());
     const screenshotBuffer = await page.screenshot();
     const img = await loadImage(screenshotBuffer);
