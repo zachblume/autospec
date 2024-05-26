@@ -21,8 +21,9 @@ const magicStrings = {
     specFailed: "The spec failed",
 };
 
-const initialSystemPrompt = /*mdx*/ ` You are an automated QA agent tasked
-with testing a web application. Here are your instructions:
+const initialSystemPrompt = `
+You are an automated QA agent tasked with testing a web application. Here are
+your instructions:
 
 1. Describe the 1024x1024 screenshot image I'm providing, and then provide a
    JSON array of formal checks that you will carry out as a manual QA
