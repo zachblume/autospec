@@ -21,112 +21,69 @@ const magicStrings = {
     specFailed: "The spec failed",
 };
 
-const prompts = {
-    testPlan: `
-        Describe the 512x512 screenshot image I'm providing, and then provide a
-        JSON array of formal checks that you will carry out as a manual QA
-        software engineer who will be testing this web app.
+const initialSystemPrompt = `
+You are an automated QA agent tasked with testing a web application. Here are your instructions:
 
-        - You only respond with only the JSON array of your test plan and
-          nothing else, without prefixes or suffixes.
-        - The array should be an array of strings, with no further object
-          complexity.
-        - Covering the most amount of user journeys with the fewest amount of
-        steps is the goal.
-    `,
-    specFeedback: ({ spec, currentX, currentY }) => `
-        I have provided you with a 1024x1024 screenshot of the current state of
-        the page after faithfully executing the last API call you requested.
+1. Describe the 1024x1024 screenshot image I'm providing, and then provide a JSON array of formal checks that you will carry out as a manual QA software engineer who will be testing this web app.
 
-        The red dot in the screenshot is your current mouse cursor position. 
-        I can tell you that the X and Y coordinates of the mouse cursor are
-        (${currentX}, ${currentY}) in the 1024x1024 coordinate system.
+    - You only respond with only the JSON array of your test plan and nothing else, without prefixes or suffixes.
+    - The array should be an array of strings, with no further object complexity.
+    - Covering the most amount of user journeys with the fewest amount of steps is the goal.
 
-        Focus on inputs is not always clearly visible. You always check that
-        the mouse cursor is correctly positioned over the target element before
-        you proceed with any clicking or typing actions. If the cursor is not 
-        correctly positioned, you must adjust it first. 
+2. When provided with a 1024x1024 screenshot of the current state of the page, your goal is to interact only with the elements necessary to fulfill the current spec.
 
-        Ignore any irrelevant text or elements on the page that do not pertain
-        to the current spec and step you're trying to reason about. Your goal
-        is to interact only with the elements necessary to fulfill the current
-        spec.
+    - The red dot in the screenshot is your current mouse cursor position. The X and Y coordinates of the mouse cursor are in the 1024x1024 coordinate system.
+    - Focus on inputs is not always clearly visible. You always check that the mouse cursor is correctly positioned over the target element before you proceed with any clicking or typing actions. If the cursor is not correctly positioned, you must adjust it first.
+    - Ignore any irrelevant text or elements on the page that do not pertain to the current spec and step you're trying to reason about.
+    - Never forget that it may be necessary to hover over elements with your mouse or go to different pages to test the full functionality of the resources or their mutations that you are looking for. If you don't immediately see what you are looking for, before declaring a spec failure, try to see if you can find it by interacting with the page or application a little more.
+    - You always adjust your mouse position to the correct location before clicking or proceeding with interactions if it seems like your mouse position is off.
 
-        There is an overlaid grid on the screenshot that is not part of the
-        actual screenshot. It is only there to help you reason about the
-        coordinates of the screenshot. Each grid box is 32x32 pixels.
+3. You have an API of actions you can take:
+    type Action = {
+        action: String;
+        x?: Number;
+        y?: Number;
+        string?: String;
+        key?: String;
+        deltaX?: Number;
+        deltaY?: Number;
+        milliseconds?: Number;
+        reason?: String;
+        fullProseExplanationOfReasoning100charmax?: String;
+    }
 
-        We're continuing to focus on this spec you previously provided:
-        "${spec}"
-
-        You have an API of actions you can take:
-        type Action = {
-            action: String;
-            x?: Number;
-            y?: Number;
-            string?: String;
-            key?: String;
-            deltaX?: Number;
-            deltaY?: Number;
-            milliseconds?: Number;
-            reason?: String;
-            fullProseExplanationOfReasoning100charmax?: String;
-        }
-
-        const possibleActions: Action[] =
-        [
-            { action:"moveMouseTo"; x:Number; y:Number },
-            { action:"clickAtCurrentLocation" },
-            { action:"doubleClickAtCurrentLocation" },
-            { action:"keyboardInputString"; string:String },
-            { action:"keyboardInputSingleKey"; key:String },
-            { action:"scroll"; deltaX:Number; deltaY:Number },
-            { action:"wait"; milliseconds: Number },
-            { action:"waitForNavigation" },
-            {
-                action:"markSpecAsComplete";
-                reason:
-                  "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
-                fullProseExplanationOfReasoning100charmax: String
-            },
-        ];
-        
-        If the screenshot already provided you enough information to answer
-        this spec completely and say that the spec has passed, you will mark the
-        spec as complete with appropriate API call and reason.
-
-        If the screenshot already provided you enough information to answer
-        this spec completely and say that the spec has failed in your judgement,
-        you will mark the spec as complete with appropriate API call and reason.
-
-        You only make one API request on this turn. You only name an action
-        type that was enumerated above. You only provide the parameters that
-        are required for that action type enumerated above.
-
-        A PlanActionStep is a JSON object that follows the following schema:
-
-        type PlanActionStep =
+    The possible actions are:
+    [
+        { action:"moveMouseTo"; x:Number; y:Number },
+        { action:"clickAtCurrentLocation" },
+        { action:"doubleClickAtCurrentLocation" },
+        { action:"keyboardInputString"; string:String },
+        { action:"keyboardInputSingleKey"; key:String },
+        { action:"scroll"; deltaX:Number; deltaY:Number },
+        { action:"wait"; milliseconds: Number },
+        { action:"waitForNavigation" },
         {
-            planningThoughtAboutTheActionIWillTake: String;
-            action: Action;
-        }
-        
-        You only respond with only the JSON of the next PlanActionStep you will take
-        and nothing else. You respond with the JSON object only, without prefixes or
-        suffixes. You never prefix it with backticks or \` or anything like that.
+            action:"markSpecAsComplete";
+            reason:
+                "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
+            fullProseExplanationOfReasoning100charmax: String
+        },
+    ];
 
-        Never forget that it may be necessary to hover over elements with your
-        mouse or go to different pages to test the full functionality of the
-        resources or their mutations that you are looking for. If you don't
-        immediately see what you are looking for, before declaring a spec 
-        failure, try to see if you can find it by interacting with the page
-        or application a little more.
+    If the screenshot already provided you enough information to answer this spec completely and say that the spec has passed, you will mark the spec as complete with appropriate API call and reason.
+    If the screenshot already provided you enough information to answer this spec completely and say that the spec has failed in your judgement, you will mark the spec as complete with appropriate API call and reason.
+    You only make one API request on this turn. You only name an action type that was enumerated above. You only provide the parameters that are required for that action type enumerated above.
 
-        You always adjust your mouse position to the correct location before
-        clicking or proceeding with interactions if it seems like your mouse
-        position is off.
-    `,
-};
+    A PlanActionStep is a JSON object that follows the following schema:
+
+    type PlanActionStep =
+    {
+        planningThoughtAboutTheActionIWillTake: String;
+        action: Action;
+    }
+    
+    You only respond with only the JSON of the next PlanActionStep you will take and nothing else. You respond with the JSON object only, without prefixes or suffixes. You never prefix it with backticks or \` or anything like that.
+`;
 
 const removeColorsFormat = winston.format((info) => {
     info.message = stripAnsi(info.message);
@@ -307,8 +264,18 @@ async function getVideoFrames({ runId }) {
 async function createTestPlan({ videoFrames }) {
     const conversationHistory = [
         {
+            role: "system",
+            content: initialSystemPrompt,
+        },
+        {
             role: "user",
-            content: [{ type: "text", text: prompts.testPlan }, ...videoFrames],
+            content: [
+                {
+                    type: "text",
+                    text: "Describe the screenshot and create a test plan.",
+                },
+                ...videoFrames,
+            ],
         },
     ];
 
@@ -334,7 +301,12 @@ async function createTestPlan({ videoFrames }) {
 async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     let specFulfilled = false;
     let k = 0;
-    const conversationHistory = [];
+    const conversationHistory = [
+        {
+            role: "system",
+            content: initialSystemPrompt,
+        },
+    ];
     const actionsTaken = [];
 
     while (!specFulfilled && ++k < maxIterations) {
@@ -359,14 +331,17 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             content: [
                 {
                     type: "text",
-                    text: prompts.specFeedback({ spec, currentX, currentY }),
+                    text: `We're continuing to focus on this spec you previously provided: "${spec}"`,
                 },
                 {
                     type: "image_url",
                     image_url: {
                         url: screenshotImageUrl,
-                        // detail: "low",
                     },
+                },
+                {
+                    type: "text",
+                    text: `The X and Y coordinates of the mouse cursor are (${currentX}, ${currentY}) in the 1024x1024 coordinate system.`,
                 },
             ],
         });
@@ -473,31 +448,6 @@ async function saveScreenshotWithCursor({ page, path }) {
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
-
-    // Add grid of 32x32 pixels and label each box with its coordinates
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < img.width; i += 32) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, img.height);
-        ctx.stroke();
-    }
-    for (let i = 0; i < img.height; i += 32) {
-        ctx.beginPath();
-        ctx.moveTo(0, i);
-        ctx.lineTo(img.width, i);
-        ctx.stroke();
-    }
-    for (let i = 0; i < img.width; i += 32) {
-        for (let j = 0; j < img.height; j += 32) {
-            ctx.font = "5px Arial";
-            // ctx.fillStyle = "black";
-            // make it somewhat transparent
-            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-            ctx.fillText(`${i},${j}`, i + 2, j + 10);
-        }
-    }
 
     const out = fs.createWriteStream(path);
     const stream = canvas.createPNGStream();
