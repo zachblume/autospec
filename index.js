@@ -9,7 +9,7 @@ import { createCanvas, loadImage } from "canvas";
 
 dotenv.config();
 
-const testUrl = "http://localhost:9999";
+const testUrl = process.env.URL || "http://localhost:9999";
 
 const openai = new OpenAI({
     // eslint-disable-next-line no-undef

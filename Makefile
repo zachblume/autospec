@@ -30,3 +30,5 @@ killautospec:
 clean:
 	rm -rf trajectories
 	
+realworld:
+	URL="https://demo.realworld.io/" node index
