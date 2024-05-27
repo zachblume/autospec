@@ -8,11 +8,14 @@ import stripAnsi from "strip-ansi";
 import { createCanvas, loadImage } from "canvas";
 
 dotenv.config();
+if (!process) {
+    // Prevent the linter from yelling at us:
+    var process = null;
+}
 
 const testUrl = process.env.URL || "http://localhost:3000";
 
 const openai = new OpenAI({
-    // eslint-disable-next-line no-undef
     apiKey: process.env.OPENAI_API_KEY,
 });
 
@@ -203,6 +206,10 @@ async function main() {
         await browser.close();
         logger.info("Video recording should be complete.");
         printTestResults();
+
+        process.exit(
+            testResults.every((result) => result.status === "passed") ? 0 : 1,
+        );
     }
 }
 
@@ -559,6 +566,8 @@ async function executeAction({
     }
 }
 
+// For now, let's leave client in
+// eslint-disable-next-line no-unused-vars
 async function saveScreenshotWithCursor({ page, path, client }) {
     // Capture the HTML snapshot
     const html = await page.content();
