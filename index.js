@@ -206,18 +206,13 @@ async function main() {
 }
 
 async function newCompletion({ messages }) {
-    // const lastMessage = messages[messages.length - 1]; // log the
-    // type==="text" content items of the last message lastMessage.content
-    // .filter((item) => item.type === "text") .forEach((item) =>
-    // logger.info(item.text));
-
     const output = await openai.chat.completions.create({
         messages,
         model: "gpt-4o",
-        max_tokens: 500,
-        // top_p: 1,
+        max_tokens: 1000,
         temperature: 0.0,
         n: 1,
+        seed: 0,
     });
 
     logger.info(output.choices[0].message.content);
