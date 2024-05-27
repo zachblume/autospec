@@ -25,9 +25,9 @@ const initialSystemPrompt = `
 You are an automated QA agent tasked with testing a web application. Here are
 your instructions:
 
-1. Describe the 1024x1024 screenshot image I'm providing, and then provide a
-   JSON array of formal checks that you will carry out as a manual QA
-   software engineer who will be testing this web app.
+1. Describe the 1024x1024 screenshot image you're provided at first, and
+   then provide a JSON array of formal checks that you will carry out as a
+   manual QA software engineer who will be testing this web app.
 
     - You only respond with only the JSON array of your test plan and
       nothing else, without prefixes or suffixes.
@@ -58,23 +58,40 @@ your instructions:
     - You always adjust your mouse position to the correct location before
       clicking or proceeding with interactions if it seems like your mouse
       position is off.
+    - You are always provided with a screenshot AND chrome developer tools
+      protocol-generated DOM snapshot in JSON format, which includes offset
+      rectangles to allow you to locate elements on the page.
+    - You always make up appropriate pathSelectors based on the DOM snapshot,
+      by relating the DOM snapshot to the screenshot you are provided, and then
+      coming up with a valid css selector that you can use to interact
+      with the element in question. You always use the nth property to
+      disambiguate between multiple elements that match the same selector.
 
-3. You have an API of actions you can take: type Action = { action: String;
-    x?: Number; y?: Number; string?: String; key?: String; deltaX?: Number;
-    deltaY?: Number; milliseconds?: Number; reason?: String;
-    fullProseExplanationOfReasoning100charmax?: String;
+
+3. You have an API of actions you can take:
+    type Action = {
+        action: String;
+        pathSelector?: String;
+        nth?: Number;
+        string?: String;
+        key?: String;
+        deltaX?: Number;
+        deltaY?: Number;
+        milliseconds?: Number;
+        reason?: String;
+        fullProseExplanationOfReasoning100charmax?: String;
     }
 
     The possible actions are:
     [
-        { action:"moveMouseTo"; x:Number; y:Number },
-        { action:"clickAtCurrentLocation" },
-        { action:"doubleClickAtCurrentLocation" },
-        { action:"keyboardInputString"; string:String },
-        { action:"keyboardInputSingleKey"; key:String },
+        { action:"hoverOver"; pathSelector: String; nth: Number },
+        { action:"clickOn", pathSelector: String; nth: Number },
+        { action:"doubleClickOn"; pathSelector: String; nth: Number },
+        { action:"keyboardInputString"; pathSelector: String; nth: Number; string:String },
+        { action:"keyboardInputSingleKey"; pathSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
-        { action:"wait"; milliseconds: Number },
-        { action:"waitForNavigation" },
+        { action:"hardWait"; milliseconds: Number },
+        { action:"waitForNavigationToComplete" },
         {
             action:"markSpecAsComplete";
             reason:
@@ -83,15 +100,17 @@ your instructions:
         },
     ];
 
-    If the screenshot already provided you enough information to answer this
-    spec completely and say that the spec has passed, you will mark the spec
-    as complete with appropriate API call and reason. If the screenshot
-    already provided you enough information to answer this spec completely
-    and say that the spec has failed in your judgement, you will mark the
-    spec as complete with appropriate API call and reason. You only make one
-    API request on this turn. You only name an action type that was
-    enumerated above. You only provide the parameters that are required for
-    that action type enumerated above.
+    - If the screenshot already provided you enough information to answer
+      this spec completely and say that the spec has passed, you will mark
+      the spec as complete with appropriate API call and reason.
+    - If the screenshot already provided you enough information to answer
+      this spec completely and say that the spec has failed in your
+      judgement, you will mark the spec as complete with appropriate API
+      call and reason.
+    - You only make one API request on this turn.
+    - You only name an action type that was enumerated above.
+    - You only provide the parameters that are required for that action type
+      enumerated above.
 
     A PlanActionStep is a JSON object that follows the following schema:
 
@@ -101,10 +120,10 @@ your instructions:
         action: Action;
     }
     
-    You only respond with only the JSON of the next PlanActionStep you will
-    take and nothing else. You respond with the JSON object only, without
-    prefixes or suffixes. You never prefix it with backticks or \` or
-    anything like that.
+    - You only respond with only the JSON of the next PlanActionStep you
+      will take and nothing else. You respond with the JSON object only,
+      without prefixes or suffixes. You never prefix it with backticks or \`
+      or anything like that.
 `;
 
 const removeColorsFormat = winston.format((info) => {
@@ -146,10 +165,12 @@ async function main() {
         }),
     );
 
-    const { browser, context, page } = await initializeBrowser({ runId });
+    const { browser, context, page, client } = await initializeBrowser({
+        runId,
+    });
 
     try {
-        await visitPages({ page, runId });
+        await visitPages({ page, runId, client });
         const { videoFrames } = await getVideoFrames({ runId });
         const { testPlan } = await createTestPlan({ videoFrames });
 
@@ -160,12 +181,13 @@ async function main() {
                 break;
             }
             await page.goto(testUrl);
-            await runTestSpec({ page, runId, spec });
+            await runTestSpec({ page, runId, spec, client });
         }
 
         logger.info("Test complete");
     } catch (e) {
         logger.error("Test error", e);
+        console.error(e);
     } finally {
         await context.close();
         await browser.close();
@@ -211,6 +233,7 @@ async function initializeBrowser({ runId }) {
         },
     });
     const page = await context.newPage();
+    const client = await context.newCDPSession(page);
 
     await page.addInitScript(() => {
         let x = 0,
@@ -222,10 +245,10 @@ async function initializeBrowser({ runId }) {
         window.getMousePosition = () => ({ x, y });
     });
 
-    return { browser, context, page };
+    return { browser, context, page, client };
 }
 
-async function visitPages({ page, runId }) {
+async function visitPages({ page, runId, client }) {
     await page.goto(testUrl);
     await page.waitForTimeout(1000);
 
@@ -242,6 +265,7 @@ async function visitPages({ page, runId }) {
         await saveScreenshotWithCursor({
             page,
             path: `trajectories/${runId}/screenshot-${i}.png`,
+            client,
         });
         const links = await page.$$eval("a", (as) => as.map((a) => a.href));
         for (const link of links) {
@@ -265,7 +289,7 @@ async function getVideoFrames({ runId }) {
             }
             const frames = files
                 .sort()
-                .filter((file) => file.startsWith("screenshot-"))
+                .filter((file) => file.endsWith(".png"))
                 .map((file) => {
                     const path = `./trajectories/${runId}/${file}`;
                     const screenshot = fs.readFileSync(path);
@@ -320,7 +344,7 @@ async function createTestPlan({ videoFrames }) {
     return { testPlan: testPlanJson };
 }
 
-async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
+async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
     let specFulfilled = false;
     let k = 0;
     const conversationHistory = [
@@ -335,6 +359,7 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
         await saveScreenshotWithCursor({
             page,
             path: `./trajectories/${runId}/screenshot-${k}.png`,
+            client,
         });
 
         const screenshot = fs.readFileSync(
@@ -367,9 +392,18 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
                 {
                     type: "text",
                     text: `
-                        The X and Y coordinates of the mouse cursor are
-                        (${currentX}, ${currentY}) in the 1024x1024 coordinate
-                        system.
+                        Here is the DOM snapshot in JSON format:
+                        ${fs.readFileSync(
+                            `./trajectories/${runId}/screenshot-${k}.json`,
+                        )}
+                    `,
+                },
+                {
+                    type: "text",
+                    text: `
+                        The current X and Y coordinates of the mouse cursor
+                        are (${currentX}, ${currentY}) in the 1024x1024
+                        coordinate system.
                     `,
                 },
             ],
@@ -385,9 +419,16 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
             content: feedback,
         });
 
-        const action = JSON.parse(feedback);
+        let action;
+        try {
+            action = JSON.parse(feedback);
+        } catch (e) {
+            logger.error("Failed to parse action", feedback);
+            logger.error(e);
+            break;
+        }
         actionsTaken.push(action);
-        await executeAction({ page, action: action.action });
+        await executeAction({ page, action });
 
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
@@ -420,35 +461,46 @@ async function runTestSpec({ page, runId, spec, maxIterations = 10 }) {
     }
 }
 
-async function executeAction({ page, action }) {
+async function executeAction({
+    page,
+    action: { action, planningThoughtAboutTheActionIWillTake },
+}) {
+    if (!action?.action) {
+        console.error("No action provided", action);
+        console.error(
+            "planningThoughtAboutTheActionIWillTake",
+            planningThoughtAboutTheActionIWillTake,
+        );
+        return;
+    }
     switch (action.action) {
-        case "moveMouseTo":
-            await page.mouse.move(action.x, action.y);
-            await page.waitForTimeout(100);
+        case "hoverOver":
+            // await page.mouse.move(action.x, action.y);
+            await page.locator(action.pathSelector).nth(action.nth).hover();
             break;
-        case "clickAtCurrentLocation":
-            await page.mouse.down();
-            await page.mouse.up();
-            await page.waitForTimeout(100);
+        case "clickOn":
+            await page.locator(action.pathSelector).nth(action.nth).click();
             break;
-        case "doubleClickAtCurrentLocation":
-            await page.mouse.down();
-            await page.mouse.up();
-            await page.mouse.down();
-            await page.mouse.up();
-            await page.waitForTimeout(100);
+        case "doubleClickOn":
+            await page.locator(action.pathSelector).nth(action.nth).dblclick();
             break;
         case "keyboardInputString":
-            await page.keyboard.type(action.string);
-            await page.waitForTimeout(100);
+            await page
+                .locator(action.pathSelector)
+                .nth(action.nth)
+                .type(action.string);
+            await page.waitForTimeout(50);
             break;
         case "keyboardInputSingleKey":
-            await page.keyboard.press(action.key);
-            await page.waitForTimeout(100);
+            await page
+                .locator(action.pathSelector)
+                .nth(action.nth)
+                .press(action.key);
+            await page.waitForTimeout(50);
             break;
         case "scroll":
             await page.mouse.wheel(action.deltaX, action.deltaY);
-            await page.waitForTimeout(100);
+            await page.waitForTimeout(50);
             break;
         case "wait":
             await page.waitForTimeout(action.milliseconds);
@@ -465,9 +517,19 @@ async function executeAction({ page, action }) {
     }
 }
 
-async function saveScreenshotWithCursor({ page, path }) {
-    // TODO: if the page is navigating while page.evaluate is running, it will
-    // throw an error
+async function saveScreenshotWithCursor({ page, path, client }) {
+    // Capture DOM snapshot
+    const domSnapshot = await client.send("DOMSnapshot.captureSnapshot", {
+        computedStyles: [],
+        includeDOMRects: true,
+        includePaintOrder: true,
+    });
+
+    // Save DOM snapshot to file
+    const snapshotPath = path.replace(".png", ".json");
+    fs.writeFileSync(snapshotPath, JSON.stringify(domSnapshot, null, 2));
+
+    // Capture screenshot with cursor
     const { x, y } = await page.evaluate(() => window.getMousePosition());
     const screenshotBuffer = await page.screenshot();
     const img = await loadImage(screenshotBuffer);
