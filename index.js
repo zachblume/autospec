@@ -22,24 +22,35 @@ const magicStrings = {
 };
 
 const initialSystemPrompt = `
-You are an automated QA agent tasked with testing a web application. Here are
-your instructions:
+You are an automated QA agent tasked with testing a web application just as
+software engineer assigned to manual testing would. Here are your
+instructions:
 
-1. Describe the 1024x1024 screenshot image you're provided at first, and
-   then provide a JSON array of formal checks that you will carry out as a
-   manual QA software engineer who will be testing this web app.
+1. At first, you'll be given a screenshot or series of screenshots mapping
+   out the current behavior of the application. Describe the application and
+   then provide a JSON array of formal checks that you will carry out.
 
+    - It's important to formulate the checks in a way that is not overly
+      dependent on the current state or behavior of the application, but
+      rather on the intended functionality of such application. You are
+      going to run these checks immeidately after you describe the
+      application, so if you describe it too literally or reliant on the
+      current state like strings, you may be overfitting.
     - You only respond with only the JSON array of your test plan and
       nothing else, without prefixes or suffixes.
     - The array should be an array of strings, with no further object
-      complexity.
+      complexity (we will call these 'specs').
     - Covering the most amount of user journeys with the fewest amount of
       steps is the goal.
 
-2. When provided with a 1024x1024 screenshot of the current state of the
-   page, your goal is to interact only with the elements necessary to
-   fulfill the current spec.
-
+2. After the mapping and description phase, you'll be provided a spec that
+   you wrote to focus on specifically, one at a time. You'll begin a loop
+   executing actions in order to fulfill the spec. On each turn, you'll be
+   provided a screenshot, a DOM snapshot in JSON format, and the current
+   mouse cursor position and other metadata.
+    
+    - Your goal is to interact only with the elements necessary to fulfill
+      the current spec.
     - The red dot in the screenshot is your current mouse cursor position.
       The X and Y coordinates of the mouse cursor are in the 1024x1024
       coordinate system.
@@ -61,34 +72,32 @@ your instructions:
     - You are always provided with a screenshot AND chrome developer tools
       protocol-generated DOM snapshot in JSON format, which includes offset
       rectangles to allow you to locate elements on the page.
-    - You always make up appropriate pathSelectors based on the DOM snapshot,
-      by relating the DOM snapshot to the screenshot you are provided, and then
-      coming up with a valid css selector that you can use to interact
-      with the element in question. You always use the nth property to
-      disambiguate between multiple elements that match the same selector.
+    - You always make up appropriate cssSelectors based on the DOM
+      snapshot, by relating the DOM snapshot to the screenshot you are
+      provided, and then coming up with a valid css selector that you can
+      use to interact with the element in question. You always use the nth
+      property to disambiguate between multiple elements that match the same
+      selector. Nth is 0-indexed.
+    - When creating CSS selectors, ensure they are unique and specific
+      enough to select only one element, even if there are multiple elements
+      of the same type (like multiple h1 elements).
+    - Avoid using generic tags like 'h1' alone. Instead, combine them with
+      other attributes or structural relationships to form a unique
+      selector.
 
-
-3. You have an API of actions you can take:
-    type Action = {
-        action: String;
-        pathSelector?: String;
-        nth?: Number;
-        string?: String;
-        key?: String;
-        deltaX?: Number;
-        deltaY?: Number;
-        milliseconds?: Number;
-        reason?: String;
-        fullProseExplanationOfReasoning100charmax?: String;
+3. You have an API of actions you can take: type Action = { action: String;
+    cssSelector?: String; nth?: Number; string?: String; key?: String;
+    deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
+    String; fullProseExplanationOfReasoning100charmax?: String;
     }
 
     The possible actions are:
     [
-        { action:"hoverOver"; pathSelector: String; nth: Number },
-        { action:"clickOn", pathSelector: String; nth: Number },
-        { action:"doubleClickOn"; pathSelector: String; nth: Number },
-        { action:"keyboardInputString"; pathSelector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; pathSelector: String; nth: Number; key:String },
+        { action:"hoverOver"; cssSelector: String; nth: Number },
+        { action:"clickOn", cssSelector: String; nth: Number },
+        { action:"doubleClickOn"; cssSelector: String; nth: Number },
+        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
+        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
         { action:"waitForNavigationToComplete" },
@@ -393,9 +402,22 @@ async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
                     type: "text",
                     text: `
                         Here is the DOM snapshot in JSON format:
+                        \`\`\`
                         ${fs.readFileSync(
                             `./trajectories/${runId}/screenshot-${k}.json`,
                         )}
+                        \`\`\`
+                    `,
+                },
+                {
+                    type: "text",
+                    text: `
+                        \`\`\`
+                        Here is an HTML snapshot of the page:
+                        ${fs.readFileSync(
+                            `./trajectories/${runId}/screenshot-${k}.html`,
+                        )}
+                        \`\`\`
                     `,
                 },
                 {
@@ -476,24 +498,24 @@ async function executeAction({
     switch (action.action) {
         case "hoverOver":
             // await page.mouse.move(action.x, action.y);
-            await page.locator(action.pathSelector).nth(action.nth).hover();
+            await page.locator(action.cssSelector).nth(action.nth).hover();
             break;
         case "clickOn":
-            await page.locator(action.pathSelector).nth(action.nth).click();
+            await page.locator(action.cssSelector).nth(action.nth).click();
             break;
         case "doubleClickOn":
-            await page.locator(action.pathSelector).nth(action.nth).dblclick();
+            await page.locator(action.cssSelector).nth(action.nth).dblclick();
             break;
         case "keyboardInputString":
             await page
-                .locator(action.pathSelector)
+                .locator(action.cssSelector)
                 .nth(action.nth)
                 .type(action.string);
             await page.waitForTimeout(50);
             break;
         case "keyboardInputSingleKey":
             await page
-                .locator(action.pathSelector)
+                .locator(action.cssSelector)
                 .nth(action.nth)
                 .press(action.key);
             await page.waitForTimeout(50);
@@ -528,6 +550,10 @@ async function saveScreenshotWithCursor({ page, path, client }) {
     // Save DOM snapshot to file
     const snapshotPath = path.replace(".png", ".json");
     fs.writeFileSync(snapshotPath, JSON.stringify(domSnapshot, null, 2));
+
+    // Capture the HTML snapshot
+    const html = await page.content();
+    fs.writeFileSync(path.replace(".png", ".html"), html);
 
     // Capture screenshot with cursor
     const { x, y } = await page.evaluate(() => window.getMousePosition());
