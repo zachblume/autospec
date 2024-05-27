@@ -236,9 +236,10 @@ async function initializeBrowser({ runId }) {
             size: { width: 1024, height: 1024 },
         },
         logger: {
-            isEnabled: (name, severity) => true,
-            log: (name, severity, message, args) =>
-                logger.info(`Playwright - ${name} ${message}`),
+            // isEnabled: (name, severity) => true,
+            isEnabled: () => true,
+            log: (name, severity, message) =>
+                logger.info(`Playwright - ${message} [${name}] [${severity}]`),
         },
     });
     context.setDefaultTimeout(1500);
@@ -559,7 +560,6 @@ async function executeAction({
                 break;
             default:
                 throw new Error(`Unknown action: ${action.action}`);
-                break;
         }
         await page.waitForTimeout(50);
         return { success: true, error: null };
