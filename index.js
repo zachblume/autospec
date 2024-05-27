@@ -46,7 +46,7 @@ instructions:
 2. After the mapping and description phase, you'll be provided a spec that
    you wrote to focus on specifically, one at a time. You'll begin a loop
    executing actions in order to fulfill the spec. On each turn, you'll be
-   provided a screenshot, a DOM snapshot in JSON format, and the current
+   provided a screenshot, a HTML dump, and the current
    mouse cursor position and other metadata.
     
     - Your goal is to interact only with the elements necessary to fulfill
@@ -69,11 +69,12 @@ instructions:
     - You always adjust your mouse position to the correct location before
       clicking or proceeding with interactions if it seems like your mouse
       position is off.
-    - You are always provided with a screenshot AND chrome developer tools
-      protocol-generated DOM snapshot in JSON format, which includes offset
-      rectangles to allow you to locate elements on the page.
-    - You always make up appropriate cssSelectors based on the DOM
-      snapshot, by relating the DOM snapshot to the screenshot you are
+    - You are always provided with a screenshot AND a copy of the current
+      rendered HTML of the page. You can use the HTML to cross-reference
+      with the screenshot to make sure you are interacting with the correct
+      elements.
+    - You always make up appropriate cssSelectors based on the HTML
+      snapshot, by relating the HTML snapshot to the screenshot you are
       provided, and then coming up with a valid css selector that you can
       use to interact with the element in question. You always use the nth
       property to disambiguate between multiple elements that match the same
@@ -403,17 +404,6 @@ async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
                 {
                     type: "text",
                     text: `
-                        Here is the DOM snapshot in JSON format:
-                        \`\`\`
-                        ${fs.readFileSync(
-                            `./trajectories/${runId}/screenshot-${k}.json`,
-                        )}
-                        \`\`\`
-                    `,
-                },
-                {
-                    type: "text",
-                    text: `
                         \`\`\`
                         Here is an HTML snapshot of the page:
                         ${fs.readFileSync(
@@ -570,17 +560,6 @@ async function executeAction({
 }
 
 async function saveScreenshotWithCursor({ page, path, client }) {
-    // Capture DOM snapshot
-    const domSnapshot = await client.send("DOMSnapshot.captureSnapshot", {
-        computedStyles: [],
-        includeDOMRects: true,
-        includePaintOrder: true,
-    });
-
-    // Save DOM snapshot to file
-    const snapshotPath = path.replace(".png", ".json");
-    fs.writeFileSync(snapshotPath, JSON.stringify(domSnapshot, null, 2));
-
     // Capture the HTML snapshot
     const html = await page.content();
     fs.writeFileSync(path.replace(".png", ".html"), html);
