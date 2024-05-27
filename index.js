@@ -33,7 +33,7 @@ instructions:
     - It's important to formulate the checks in a way that is not overly
       dependent on the current state or behavior of the application, but
       rather on the intended functionality of such application. You are
-      going to run these checks immeidately after you describe the
+      going to run these checks immediately after you describe the
       application, so if you describe it too literally or reliant on the
       current state like strings, you may be overfitting.
     - You only respond with only the JSON array of your test plan and
@@ -100,7 +100,7 @@ instructions:
         { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
-        { action:"waitForNavigationToComplete" },
+        { action:"gotoURL"; url: String },
         {
             action:"markSpecAsComplete";
             reason:
@@ -240,7 +240,13 @@ async function initializeBrowser({ runId }) {
             dir: `./trajectories/${runId}`,
             size: { width: 1024, height: 1024 },
         },
+        logger: {
+            isEnabled: (name, severity) => true,
+            log: (name, severity, message, args) =>
+                logger.info(`Playwright - ${name} ${message}`),
+        },
     });
+    context.setDefaultTimeout(1500);
     const page = await context.newPage();
     const client = await context.newCDPSession(page);
 
@@ -259,7 +265,7 @@ async function initializeBrowser({ runId }) {
 
 async function visitPages({ page, runId, client }) {
     await page.goto(testUrl);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(100);
 
     const urlsAlreadyVisited = new Set();
     const urlsToVisit = new Set([testUrl]);
@@ -428,6 +434,12 @@ async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
                         coordinate system.
                     `,
                 },
+                {
+                    type: "text",
+                    text: `
+                        The current URL is: ${page.url()}
+                    `,
+                },
             ],
         });
 
@@ -450,7 +462,23 @@ async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
             break;
         }
         actionsTaken.push(action);
-        await executeAction({ page, action });
+        const result = await executeAction({ page, action });
+        if (result?.error) {
+            conversationHistory.push({
+                role: "user",
+                content: [
+                    {
+                        type: "text",
+                        text: `
+                            The following error occurred while executing the action:
+                            \`\`\`
+                            ${result.error.message}
+                            \`\`\`
+                        `,
+                    },
+                ],
+            });
+        }
 
         if (feedback.includes(magicStrings.specPassed)) {
             specFulfilled = true;
@@ -495,47 +523,54 @@ async function executeAction({
         );
         return;
     }
-    switch (action.action) {
-        case "hoverOver":
-            // await page.mouse.move(action.x, action.y);
-            await page.locator(action.cssSelector).nth(action.nth).hover();
-            break;
-        case "clickOn":
-            await page.locator(action.cssSelector).nth(action.nth).click();
-            break;
-        case "doubleClickOn":
-            await page.locator(action.cssSelector).nth(action.nth).dblclick();
-            break;
-        case "keyboardInputString":
-            await page
-                .locator(action.cssSelector)
-                .nth(action.nth)
-                .type(action.string);
-            await page.waitForTimeout(50);
-            break;
-        case "keyboardInputSingleKey":
-            await page
-                .locator(action.cssSelector)
-                .nth(action.nth)
-                .press(action.key);
-            await page.waitForTimeout(50);
-            break;
-        case "scroll":
-            await page.mouse.wheel(action.deltaX, action.deltaY);
-            await page.waitForTimeout(50);
-            break;
-        case "wait":
-            await page.waitForTimeout(action.milliseconds);
-            break;
-        case "waitForNavigation":
-            await page.waitForNavigation();
-            break;
-        case "markSpecAsComplete":
-            logger.info(`Spec marked as complete: ${action.reason}`);
-            break;
-        default:
-            console.error("Unknown action", action);
-            break;
+
+    try {
+        switch (action.action) {
+            case "hoverOver":
+                await page.locator(action.cssSelector).nth(action.nth).hover();
+                break;
+            case "clickOn":
+                await page.locator(action.cssSelector).nth(action.nth).click();
+                break;
+            case "doubleClickOn":
+                await page
+                    .locator(action.cssSelector)
+                    .nth(action.nth)
+                    .dblclick();
+                break;
+            case "keyboardInputString":
+                await page
+                    .locator(action.cssSelector)
+                    .nth(action.nth)
+                    .fill(action.string);
+                break;
+            case "keyboardInputSingleKey":
+                await page
+                    .locator(action.cssSelector)
+                    .nth(action.nth)
+                    .press(action.key);
+                break;
+            case "scroll":
+                await page.mouse.wheel(action.deltaX, action.deltaY);
+                break;
+            case "hardWait":
+                await page.waitForTimeout(action.milliseconds);
+                break;
+            case "gotoURL":
+                await page.goto(action.url);
+                break;
+            case "markSpecAsComplete":
+                logger.info(`Spec marked as complete: ${action.reason}`);
+                break;
+            default:
+                throw new Error(`Unknown action: ${action.action}`);
+                break;
+        }
+        await page.waitForTimeout(50);
+        return { success: true, error: null };
+    } catch (error) {
+        logger.error("Error executing action:", error);
+        return { error, success: false };
     }
 }
 
