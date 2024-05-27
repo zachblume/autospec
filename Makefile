@@ -2,9 +2,9 @@
 
 reset: install stop start
 
-start: todomvc realitycheck
+start: todomvc autospec
 
-stop: stoptodomvc killrealitycheck
+stop: stoptodomvc killautospec
 
 install:
 	npm install
@@ -21,10 +21,10 @@ todomvc:
 stoptodomvc:
 	docker rm -f todomvc || true
 
-realitycheck:
+autospec:
 	node index
 
-killrealitycheck:
+killautospec:
 	pkill -f index.js || true
 
 clean:
