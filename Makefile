@@ -4,6 +4,8 @@ install:
 	npm install
 	npx husky install
 	npx playwright install
+	chmod +x ./tests/shouldPass.sh
+	chmod +x ./tests/shouldFail.sh
 
 killautospec:
 	pkill -f index.js || true
