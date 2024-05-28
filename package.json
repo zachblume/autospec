@@ -7,7 +7,7 @@
         "**/*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"
     },
     "dependencies": {
-        "@playwright/test": "^1.44.0",
+        "@playwright/test": "^1.44.1",
         "canvas": "^2.11.2",
         "chalk": "^5.3.0",
         "dotenv": "^16.4.5",
