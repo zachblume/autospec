@@ -10,6 +10,7 @@ import { createCanvas, loadImage } from "canvas";
 dotenv.config();
 
 const testUrl = process.env.URL || "http://localhost:3000";
+const globalLimitToNumberOfSpecs = process.env.LIMIT_TO_NUMBER_OF_SPECS || 10;
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -183,22 +184,20 @@ async function main() {
         const { videoFrames } = await getVideoFrames({ runId });
         const { testPlan } = await createTestPlan({ videoFrames });
 
-        let j = 0;
-        for (const spec of testPlan) {
-            j++;
-            if (j > 10) {
-                break;
-            }
-            await page.goto(testUrl);
-            await runTestSpec({ page, runId, spec, client });
-        }
+        // Cleanup the context, but leave the browser alive as a global
+        await context.close();
+
+        const testPromises = testPlan
+            .slice(0, globalLimitToNumberOfSpecs)
+            .map((spec, i) => runTestSpec({ runId, spec, browser, specId: i }));
+
+        await Promise.all(testPromises);
 
         logger.info("Test complete");
     } catch (e) {
         logger.error("Test error", e);
         console.error(e);
     } finally {
-        await context.close();
         await browser.close();
         logger.info("Video recording should be complete.");
         printTestResults();
@@ -224,8 +223,9 @@ async function newCompletion({ messages }) {
     return output;
 }
 
-async function initializeBrowser({ runId }) {
-    const browser = await playwright.chromium.launch();
+async function initializeBrowser({ runId, browser: browserPassedThrough }) {
+    const browser =
+        browserPassedThrough || (await playwright.chromium.launch());
     const context = await browser.newContext({
         viewport: {
             height: 1024,
@@ -359,7 +359,18 @@ async function createTestPlan({ videoFrames }) {
     return { testPlan: testPlanJson };
 }
 
-async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
+async function runTestSpec({
+    runId,
+    spec,
+    browser,
+    maxIterations = 10,
+    specId,
+}) {
+    const { context, page, client } = await initializeBrowser({
+        runId,
+        browser,
+    });
+
     let specFulfilled = false;
     let k = 0;
     const conversationHistory = [
@@ -370,133 +381,142 @@ async function runTestSpec({ page, runId, spec, client, maxIterations = 10 }) {
     ];
     const actionsTaken = [];
 
-    while (!specFulfilled && ++k < maxIterations) {
-        await saveScreenshotWithCursor({
-            page,
-            path: `./trajectories/${runId}/screenshot-${k}.png`,
-            client,
-        });
+    try {
+        await page.goto(testUrl);
+        while (!specFulfilled && ++k < maxIterations) {
+            await saveScreenshotWithCursor({
+                page,
+                path: `./trajectories/${runId}/screenshot-${specId}-${k}.png`,
+                client,
+            });
 
-        const screenshot = fs.readFileSync(
-            `./trajectories/${runId}/screenshot-${k}.png`,
-        );
-        const base64utf8 = screenshot.toString("base64");
-        const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
+            const screenshot = fs.readFileSync(
+                `./trajectories/${runId}/screenshot-${specId}-${k}.png`,
+            );
+            const base64utf8 = screenshot.toString("base64");
+            const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
 
-        const { x: currentX, y: currentY } = await page.evaluate(() =>
-            window.getMousePosition(),
-        );
-        logger.info(`Current mouse position: (${currentX}, ${currentY})`);
+            const { x: currentX, y: currentY } = await page.evaluate(() =>
+                window.getMousePosition(),
+            );
+            logger.info(`Current mouse position: (${currentX}, ${currentY})`);
 
-        conversationHistory.push({
-            role: "user",
-            content: [
-                {
-                    type: "text",
-                    text: `
-                        We're continuing to focus on this spec you previously
-                        provided: "${spec}"
-                    `,
-                },
-                {
-                    type: "image_url",
-                    image_url: {
-                        url: screenshotImageUrl,
-                    },
-                },
-                {
-                    type: "text",
-                    text: `
-                        \`\`\`
-                        Here is an HTML snapshot of the page:
-                        ${fs.readFileSync(
-                            `./trajectories/${runId}/screenshot-${k}.html`,
-                        )}
-                        \`\`\`
-                    `,
-                },
-                {
-                    type: "text",
-                    text: `
-                        The current X and Y coordinates of the mouse cursor
-                        are (${currentX}, ${currentY}) in the 1024x1024
-                        coordinate system.
-                    `,
-                },
-                {
-                    type: "text",
-                    text: `
-                        The current URL is: ${page.url()}
-                    `,
-                },
-            ],
-        });
-
-        const specFeedback = await newCompletion({
-            messages: conversationHistory,
-        });
-
-        const feedback = specFeedback.choices[0].message.content;
-        conversationHistory.push({
-            role: "assistant",
-            content: feedback,
-        });
-
-        let action;
-        try {
-            action = JSON.parse(feedback);
-        } catch (e) {
-            logger.error("Failed to parse action", feedback);
-            logger.error(e);
-            break;
-        }
-        actionsTaken.push(action);
-        const result = await executeAction({ page, action });
-        if (result?.error) {
             conversationHistory.push({
                 role: "user",
                 content: [
                     {
                         type: "text",
                         text: `
-                            The following error occurred while executing the action:
+                            We're continuing to focus on this spec you previously
+                            provided: "${spec}"
+                        `,
+                    },
+                    {
+                        type: "image_url",
+                        image_url: {
+                            url: screenshotImageUrl,
+                        },
+                    },
+                    {
+                        type: "text",
+                        text: `
                             \`\`\`
-                            ${result.error.message}
+                            Here is an HTML snapshot of the page:
+                            ${fs.readFileSync(
+                                `./trajectories/${runId}/screenshot-${specId}-${k}.html`,
+                            )}
                             \`\`\`
+                        `,
+                    },
+                    {
+                        type: "text",
+                        text: `
+                            The current X and Y coordinates of the mouse cursor
+                            are (${currentX}, ${currentY}) in the 1024x1024
+                            coordinate system.
+                        `,
+                    },
+                    {
+                        type: "text",
+                        text: `
+                            The current URL is: ${page.url()}
                         `,
                     },
                 ],
             });
+
+            const specFeedback = await newCompletion({
+                messages: conversationHistory,
+            });
+
+            const feedback = specFeedback.choices[0].message.content;
+            conversationHistory.push({
+                role: "assistant",
+                content: feedback,
+            });
+
+            let action;
+            try {
+                action = JSON.parse(feedback);
+            } catch (e) {
+                logger.error("Failed to parse action", feedback);
+                logger.error(e);
+                break;
+            }
+            actionsTaken.push(action);
+            const result = await executeAction({ page, action });
+            if (result?.error) {
+                conversationHistory.push({
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `
+                                The following error occurred while executing the action:
+                                \`\`\`
+                                ${result.error.message}
+                                \`\`\`
+                            `,
+                        },
+                    ],
+                });
+            }
+
+            if (feedback.includes(magicStrings.specPassed)) {
+                specFulfilled = true;
+                testResults.push({
+                    spec,
+                    status: "passed",
+                    actions: actionsTaken,
+                });
+            } else if (feedback.includes(magicStrings.specFailed)) {
+                logger.info("Spec failed");
+                logger.info("Reasoning:");
+                logger.info(
+                    action?.action?.fullProseExplanationOfReasoning100charmax,
+                );
+                testResults.push({
+                    spec,
+                    status: "failed",
+                    reason: action?.action
+                        ?.fullProseExplanationOfReasoning100charmax,
+                    actions: actionsTaken,
+                });
+                specFulfilled = true;
+            }
         }
 
-        if (feedback.includes(magicStrings.specPassed)) {
-            specFulfilled = true;
-            testResults.push({ spec, status: "passed", actions: actionsTaken });
-        } else if (feedback.includes(magicStrings.specFailed)) {
-            logger.info("Spec failed");
-            logger.info("Reasoning:");
-            logger.info(
-                action?.action?.fullProseExplanationOfReasoning100charmax,
-            );
+        if (!specFulfilled) {
+            logger.info(`Spec failed due to max iterations (${maxIterations})`);
             testResults.push({
                 spec,
                 status: "failed",
-                reason: action?.action
-                    ?.fullProseExplanationOfReasoning100charmax,
+                reason: `Max iterations (${maxIterations}) reached`,
                 actions: actionsTaken,
             });
-            specFulfilled = true;
         }
-    }
-
-    if (!specFulfilled) {
-        logger.info(`Spec failed due to max iterations (${maxIterations})`);
-        testResults.push({
-            spec,
-            status: "failed",
-            reason: `Max iterations (${maxIterations}) reached`,
-            actions: actionsTaken,
-        });
+    } finally {
+        await context.close();
     }
 }
 
