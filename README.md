@@ -2,14 +2,12 @@
 
 ### Open source end-to-end (e2e) test generation for web apps
 
-Traditional software testing relies on specifying behavior in code to catch
-regressions. However, real users interact with applications based on intuition
-and domain knowledge, not formal specs.
-
-autospec leverages vision and text language models to explore and generate
-commonsense test specifications for web applications. It aims to mimic
-user-like judgement on the entire UI output after each interaction to decide
-whether to raise an error about how an application behaves.
+autospec is an end-to-end test/QA agent, using vision and text language models
+to explore and generate commonsense test specifications for web applications.
+It aims to mimic user-like judgement on the entire UI output after each
+interaction to decide whether to raise an error about how an application
+behaves, instead of catching regressions against rigidly defined previous
+behavior.
 
 -   This approach allows autospec to test new features immediately after
     implementation, not just check for regressions.
