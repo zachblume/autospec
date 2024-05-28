@@ -6,10 +6,10 @@ Traditional software testing relies on specifying behavior in code to catch
 regressions. However, real users interact with applications based on intuition
 and domain knowledge, not formal specs.
 
-autospec leverages multi-modal LLMs to explore and generate commonsense test
-specifications for web applications. It aims to mimic user-like judgement on
-the entire UI output after each interaction to decide whether to raise an error
-about how an application behaves.
+autospec leverages vision and text language models to explore and generate
+commonsense test specifications for web applications. It aims to mimic
+user-like judgement on the entire UI output after each interaction to decide
+whether to raise an error about how an application behaves.
 
 -   This approach allows autospec to test new features immediately after
     implementation, not just check for regressions.
