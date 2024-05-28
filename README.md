@@ -2,17 +2,18 @@
 
 ### Open source end-to-end (e2e) test generation for web apps
 
-Traditional software testing is based on specifying behavior in code to test
-for regressions. Users and QA testers, on the other hand, don't rely on formal
-specifications to determine usability, but judgement.
+Traditional software testing relies on specifying behavior in code to catch
+regressions. However, real users interact with applications based on intuition
+and domain knowledge, not formal specs.
 
-autospec uses multi-modal LLMs to explore and test web apps, and uses judgement
-on the full UI output after each interaction to decide whether to raise an
-error.
+autospec leverages multi-modal LLMs to explore and generate commonsense test
+specifications for web applications. It aims to mimic user-like judgement on
+the entire UI output after each interaction to decide whether to raise an error
+about how an application behaves.
 
--   This allows autospec to test new behavior immediately after implementation,
-    instead of just testing for regressions.
--   This means autospec requires no configuration.
+-   This approach allows autospec to test new features immediately after
+    implementation, not just check for regressions.
+-   It requires no configuration, making it straightforward to use.
 
 ### Use the demonstration
 
@@ -24,11 +25,9 @@ mv .env.example .env
 # Use Node.js version specified in .nvmrc:
 nvm use
 
-# Install dependencies, boot the docker app we are testing (todomvc),
-# and run the agent:
+# Install dependencies:
 make
+
+# Run the app with a target test URL:
+URL="https://todomvc.com/examples/react/dist/" node index.js
 ```
-
-### Development
-
-The main logic is currently in [index.js](index.js)
