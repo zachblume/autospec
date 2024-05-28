@@ -8,10 +8,6 @@ import stripAnsi from "strip-ansi";
 import { createCanvas, loadImage } from "canvas";
 
 dotenv.config();
-if (!process) {
-    // Prevent the linter from yelling at us:
-    var process = null;
-}
 
 const testUrl = process.env.URL || "http://localhost:3000";
 
