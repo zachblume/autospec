@@ -208,19 +208,43 @@ async function main() {
     }
 }
 
+async function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function newCompletion({ messages }) {
-    const output = await openai.chat.completions.create({
-        messages,
-        model: "gpt-4o",
-        max_tokens: 1000,
-        temperature: 0.0,
-        n: 1,
-        seed: 0,
-    });
+    let attempts = 0;
+    const maxAttempts = 99;
 
-    logger.info(output.choices[0].message.content);
+    while (attempts < maxAttempts) {
+        try {
+            const output = await openai.chat.completions.create({
+                messages,
+                model: "gpt-4o",
+                max_tokens: 1000,
+                temperature: 0.0,
+                n: 1,
+                seed: 0,
+            });
 
-    return output;
+            logger.info(output.choices[0].message.content);
+
+            return output;
+        } catch (error) {
+            if (error.status === 429) {
+                attempts++;
+                const retryAfter = parseInt(error.headers["retry-after-ms"]);
+                logger.warn(
+                    `Rate limit reached. Retrying in ${retryAfter / 1000} seconds...`,
+                );
+                await sleep(retryAfter);
+            } else {
+                throw error; // Rethrow other errors
+            }
+        }
+    }
+
+    throw new Error("Openai API maximum retries exceeded");
 }
 
 async function initializeBrowser({ runId, browser: browserPassedThrough }) {
