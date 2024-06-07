@@ -1,9 +1,9 @@
 {
-    "name": "autospec",
-    "version": "0.0.1",
+    "name": "autospecai",
+    "version": "0.0.2",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
-        "autospec": "cli.js"
+        "autospecai": "cli.js"
     },
     "type": "module",
     "keywords": [
