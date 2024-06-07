@@ -332,7 +332,7 @@ async function initializeBrowser({ runId, browser: browserPassedThrough }) {
                 logger.info(`Playwright - ${message} [${name}] [${severity}]`),
         },
     });
-    context.setDefaultTimeout(1500);
+    context.setDefaultTimeout(2500);
     const page = await context.newPage();
     const client = await context.newCDPSession(page);
 
