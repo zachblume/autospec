@@ -101,7 +101,3 @@ Test Summary:
 autospec passed for https://todomvc.com/examples/react/dist/
 
 ```
-
-```
-
-```
