@@ -17,14 +17,6 @@ const modelConfigs = {
     "claude-3-haiku": anthropic("claude-3-haiku-20240307"),
 };
 
-const modelConfig =
-    modelConfigs[process.env.MODEL || "gemini-1.5-flash-latest"];
-const testUrl = process.env.URL || "http://localhost:3000";
-const globalLimitToNumberOfSpecs =
-    process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
-        ? parseInt(process.env.SPEC_LIMIT)
-        : 1;
-
 const magicStrings = {
     specPassed: "The spec passed",
     specFailed: "The spec failed",
@@ -189,7 +181,13 @@ const logger = winston.createLogger({
 
 let testResults = [];
 
-async function main() {
+export async function main({
+    testUrl = process.env.URL || "http://localhost:3000",
+    model = process.env.MODEL || "gemini-1.5-flash-latest",
+    specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
+        ? parseInt(process.env.SPEC_LIMIT)
+        : 10,
+} = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
         "_" +
@@ -214,16 +212,23 @@ async function main() {
     });
 
     try {
-        await visitPages({ page, runId, client });
+        await visitPages({ page, runId, client, testUrl });
         const { videoFrames } = await getVideoFrames({ runId });
-        const { testPlan } = await createTestPlan({ videoFrames });
+        const { testPlan } = await createTestPlan({ videoFrames, model });
 
         // Cleanup the context, but leave the browser alive as a global
         await context.close();
 
-        const testPromises = testPlan
-            .slice(0, globalLimitToNumberOfSpecs)
-            .map((spec, i) => runTestSpec({ runId, spec, browser, specId: i }));
+        const testPromises = testPlan.slice(0, specLimit).map((spec, i) =>
+            runTestSpec({
+                runId,
+                spec,
+                browser,
+                specId: i,
+                model,
+                testUrl,
+            }),
+        );
 
         await Promise.all(testPromises);
 
@@ -242,9 +247,9 @@ async function main() {
     }
 }
 
-async function newCompletion({ messages, schema }) {
+async function newCompletion({ messages, schema, model }) {
     const { object } = await generateObject({
-        model: modelConfig,
+        model: modelConfigs[model],
         messages,
         temperature: 0.0,
         maxRetries: 5,
@@ -298,7 +303,7 @@ async function initializeBrowser({ runId, browser: browserPassedThrough }) {
     return { browser, context, page, client };
 }
 
-async function visitPages({ page, runId, client }) {
+async function visitPages({ page, runId, client, testUrl }) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -353,7 +358,7 @@ async function getVideoFrames({ runId }) {
     });
 }
 
-async function createTestPlan({ videoFrames }) {
+async function createTestPlan({ videoFrames, model }) {
     const conversationHistory = [
         {
             role: "system",
@@ -374,6 +379,7 @@ async function createTestPlan({ videoFrames }) {
     const testPlan = await newCompletion({
         messages: conversationHistory,
         schema: testPlanSchema,
+        model,
     });
 
     const testPlanJson = testPlan?.arrayOfSpecs;
@@ -396,6 +402,8 @@ async function runTestSpec({
     browser,
     maxIterations = 10,
     specId,
+    model,
+    testUrl,
 }) {
     const { context, page, client } = await initializeBrowser({
         runId,
@@ -475,6 +483,7 @@ async function runTestSpec({
             const action = await newCompletion({
                 messages: conversationHistory,
                 schema: actionStepSchema,
+                model,
             });
 
             conversationHistory.push({
@@ -600,8 +609,7 @@ async function executeAction({
     }
 }
 
-// For now, let's leave client in
-// eslint-disable-next-line no-unused-vars
+// For now, let's leave client in eslint-disable-next-line no-unused-vars
 async function saveScreenshotWithCursor({ page, path, client }) {
     // Capture the HTML snapshot
     const html = await page.content();
@@ -648,5 +656,3 @@ function printTestResults() {
         });
     });
 }
-
-main().then(() => null);
