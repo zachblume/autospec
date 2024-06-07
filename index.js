@@ -20,7 +20,10 @@ const modelConfigs = {
 const modelConfig =
     modelConfigs[process.env.MODEL || "gemini-1.5-flash-latest"];
 const testUrl = process.env.URL || "http://localhost:3000";
-const globalLimitToNumberOfSpecs = process.env.SPEC_LIMIT || 1;
+const globalLimitToNumberOfSpecs =
+    process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
+        ? parseInt(process.env.SPEC_LIMIT)
+        : 1;
 
 const magicStrings = {
     specPassed: "The spec passed",
