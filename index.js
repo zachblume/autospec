@@ -8,19 +8,19 @@ import dotenv from "dotenv";
 import fs from "fs";
 import winston from "winston";
 import chalk from "chalk";
+import stripAnsi from "strip-ansi";
 import { createCanvas, loadImage } from "canvas";
 dotenv.config();
-
-const testUrl = process.env.URL || "http://localhost:3000";
-const globalLimitToNumberOfSpecs = process.env.LIMIT_TO_NUMBER_OF_SPECS || 1;
-
 const modelConfigs = {
     "gemini-1.5-flash-latest": google("models/gemini-1.5-flash-latest"),
     "gpt-4o": openai("gpt-4o"),
     "claude-3-haiku": anthropic("claude-3-haiku-20240307"),
 };
+
 const modelConfig =
     modelConfigs[process.env.MODEL || "gemini-1.5-flash-latest"];
+const testUrl = process.env.URL || "http://localhost:3000";
+const globalLimitToNumberOfSpecs = process.env.SPEC_LIMIT || 1;
 
 const magicStrings = {
     specPassed: "The spec passed",
@@ -146,6 +146,7 @@ instructions:
 const testPlanSchema = z.object({
     arrayOfSpecs: z.array(z.string()),
 });
+
 const actionStepSchema = z.object({
     planningThoughtAboutTheActionIWillTake: z.string(),
     action: z.object({
@@ -199,7 +200,7 @@ async function main() {
             format: winston.format.combine(
                 winston.format.printf(
                     ({ timestamp, level, message }) =>
-                        `${timestamp} [${level.toUpperCase()}] - ${message}`,
+                        `${timestamp} [${level.toUpperCase()}] - ${stripAnsi(message)}`,
                 ),
             ),
         }),
