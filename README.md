@@ -13,35 +13,61 @@ behavior.
     implementation, not just check for regressions.
 -   It requires no configuration, making it straightforward to use.
 
-### Configuration through environment variables:
+### Quick start
+
+Generate and run 10 specs on TodoMVC, a classic example web app:
+
+```
+npx autospecai --url https://todomvc.com/examples/react/dist/ --apikey YOUR_OPENAI_API_KEY
+```
+
+That's it!
+
+You'll need to say "yes" to install the autospecai package, and the first run
+will take a few minutes to download dependencies like browser binaries, etc.
+
+### Using environment variables instead of passing keys as a flag
+
+Copy the sample .env file, and fill in the OPENAI_API_KEY
+or GOOGLE_GENERATIVE_AI_API_KEY before running the app:
 
 ```bash
-URL="https://www.example.com" MODEL="gpt-4o" SPEC_LIMIT=10 node index.js
-# URL: The URL of the web app to test
-# MODEL: The model to use for generating test specifications
-# * gpt-4o: OpenAI's GPT-4 model
-# * gemini-1.5-flash-latest: Google's Gemini model (free up to rate limits)
-# * claude-3-haiku: Anthropic's Claude model
-# SPEC_LIMIT: The number of test specification strings to generate and run
+mv .env.example .env # rename the example to .env
+nano .env # edit as you like
 ```
 
-### Get started
+### Learn more about configuration
 
 ```bash
-# Copy the sample .env file, you'll need to fill in the OPENAI_API_KEY
-# or GOOGLE_GENERATIVE_AI_API_KEY before running the app:
-mv .env.example .env
+> npx autospec --help
+    Usage: npx autospec --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
 
-# Install dependencies:
-npm install
+    Required:
+    --url <url>          The target URL to run the autospec tests against.
 
-# Generate and run 10 specs to test TodoMVC, a classic web app example:
-URL="https://todomvc.com/examples/react/dist/" MODEL="gpt-4o" SPEC_LIMIT=10 node index.js
+    Optional:
+    --help, -h           Show this help message.
+    --spec_limit <limit> The max number of specs to generate. Default 10.
+    --model <model>      The model to use for spec generation
+                            * "gpt-4o" (default)
+                            * "gemini-1.5-flash-latest"
+                            * "claude-3-haiku"
+                            * (note: Gemini flash is free up to rate limits)
+    --apikey <key>       The relevant API key for the chosen model's API.
+                            * If not specified, we'll fall back on the
+                            following environment variables:
+                            * OPENAI_API_KEY
+                            * GOOGLE_GENERATIVE_AI_API_KEY
+                            * ANTHROPIC_API_KEY
+
 ```
 
+## Example output
+
+Logs are printed to the console like so, as well as to a trajectories/\*\*
+folder alongside a video, png and HTML/JSON DOM snapshots:
+
 ```
-# Logs are printed to the console like so, as well as to a trajectories/** folder
-# alongside a video, png and HTML/JSON DOM snapshots:
 Test Summary:
 ✔ 1. Check if the page loads successfully
   1.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The page loaded successfully with all expected elements visible., planningThoughtAboutTheActionIWillTake: The page has loaded successfully as indicated by the presence of the header, input field, and footer. I will mark the spec as complete.
