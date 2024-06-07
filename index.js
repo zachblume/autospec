@@ -13,12 +13,12 @@ import winston from "winston";
 
 dotenv.config();
 
-const magicStrings = {
+export const magicStrings = {
     specPassed: "The spec passed",
     specFailed: "The spec failed",
 };
 
-const initialSystemPrompt = `
+export const initialSystemPrompt = `
 You are an automated QA agent tasked with testing a web application just as
 software engineer assigned to manual testing would. Here are your
 instructions:
@@ -134,11 +134,11 @@ instructions:
       or anything like that.
 `;
 
-const testPlanSchema = z.object({
+export const testPlanSchema = z.object({
     arrayOfSpecs: z.array(z.string()),
 });
 
-const actionStepSchema = z.object({
+export const actionStepSchema = z.object({
     planningThoughtAboutTheActionIWillTake: z.string(),
     action: z.object({
         action: z.string(
@@ -164,7 +164,7 @@ const actionStepSchema = z.object({
     }),
 });
 
-const logger = winston.createLogger({
+export const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
         winston.format.timestamp(),
@@ -293,7 +293,7 @@ export async function main({
     }
 }
 
-async function newCompletion({ messages, schema, model }) {
+export async function newCompletion({ messages, schema, model }) {
     const { object } = await generateObject({
         model,
         messages,
@@ -309,7 +309,10 @@ async function newCompletion({ messages, schema, model }) {
     return object;
 }
 
-async function initializeBrowser({ runId, browser: browserPassedThrough }) {
+export async function initializeBrowser({
+    runId,
+    browser: browserPassedThrough,
+}) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
     const context = await browser.newContext({
@@ -349,7 +352,7 @@ async function initializeBrowser({ runId, browser: browserPassedThrough }) {
     return { browser, context, page, client };
 }
 
-async function visitPages({ page, runId, client, testUrl }) {
+export async function visitPages({ page, runId, client, testUrl }) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -381,7 +384,7 @@ async function visitPages({ page, runId, client, testUrl }) {
     }
 }
 
-async function getVideoFrames({ runId }) {
+export async function getVideoFrames({ runId }) {
     return new Promise((resolve, reject) => {
         fs.readdir(`./trajectories/${runId}`, (err, files) => {
             if (err) {
@@ -404,7 +407,7 @@ async function getVideoFrames({ runId }) {
     });
 }
 
-async function createTestPlan({ videoFrames, model }) {
+export async function createTestPlan({ videoFrames, model }) {
     const conversationHistory = [
         {
             role: "system",
@@ -442,7 +445,7 @@ async function createTestPlan({ videoFrames, model }) {
     return { testPlan: testPlanJson };
 }
 
-async function runTestSpec({
+export async function runTestSpec({
     runId,
     spec,
     browser,
@@ -593,7 +596,7 @@ async function runTestSpec({
     }
 }
 
-async function executeAction({
+export async function executeAction({
     page,
     action: { action, planningThoughtAboutTheActionIWillTake },
 }) {
@@ -657,7 +660,7 @@ async function executeAction({
 
 // For now, let's leave client in
 // eslint-disable-next-line no-unused-vars
-async function saveScreenshotWithCursor({ page, path, client }) {
+export async function saveScreenshotWithCursor({ page, path, client }) {
     // Capture the HTML snapshot
     const html = await page.content();
     fs.writeFileSync(path.replace(".png", ".html"), html);
@@ -680,7 +683,7 @@ async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-function printTestResults() {
+export function printTestResults() {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 
