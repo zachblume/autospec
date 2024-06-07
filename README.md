@@ -37,10 +37,11 @@ npm install
 
 # Generate and run 10 specs to test TodoMVC, a classic web app example:
 URL="https://todomvc.com/examples/react/dist/" MODEL="gpt-4o" SPEC_LIMIT=10 node index.js
+```
 
+```
 # Logs are printed to the console like so, as well as to a trajectories/** folder
 # alongside a video, png and HTML/JSON DOM snapshots:
-
 Test Summary:
 ✔ 1. Check if the page loads successfully
   1.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The page loaded successfully with all expected elements visible., planningThoughtAboutTheActionIWillTake: The page has loaded successfully as indicated by the presence of the header, input field, and footer. I will mark the spec as complete.
