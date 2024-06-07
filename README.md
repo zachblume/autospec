@@ -13,24 +13,34 @@ behavior.
     implementation, not just check for regressions.
 -   It requires no configuration, making it straightforward to use.
 
-### Use the demonstration
+### Configuration through environment variables:
+
+```bash
+URL="https://www.example.com" MODEL="gpt-4o" SPEC_LIMIT=10 node index.js
+# URL: The URL of the web app to test
+# MODEL: The model to use for generating test specifications
+# * gpt-4o: OpenAI's GPT-4 model
+# * gemini-1.5-flash-latest: Google's Gemini model (free up to rate limits)
+# * claude-3-haiku: Anthropic's Claude model
+# SPEC_LIMIT: The number of test specification strings to generate and run
+```
+
+### Get started
 
 ```bash
 # Copy the sample .env file, you'll need to fill in the OPENAI_API_KEY
-# before running the app:
+# or GOOGLE_GENERATIVE_AI_API_KEY before running the app:
 mv .env.example .env
 
-# Use Node.js version specified in .nvmrc:
-nvm use
-
 # Install dependencies:
-make
+npm install
 
-# Run the app with a target test URL:
-URL="https://todomvc.com/examples/react/dist/" node index.js
+# Generate and run 10 specs to test TodoMVC, a classic web app example:
+URL="https://todomvc.com/examples/react/dist/" SPEC_LIMIT=10 node index.js
 
 # Logs are printed to the console like so, as well as to a trajectories/** folder
 # alongside a video, png and HTML/JSON DOM snapshots:
+
 Test Summary:
 ✔ 1. Check if the page loads successfully
   1.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The page loaded successfully with all expected elements visible., planningThoughtAboutTheActionIWillTake: The page has loaded successfully as indicated by the presence of the header, input field, and footer. I will mark the spec as complete.
