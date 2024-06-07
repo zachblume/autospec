@@ -179,7 +179,7 @@ let testResults = [];
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
-    modelName = process.env.MODEL || "gemini-1.5-flash-latest",
+    modelName = process.env.MODEL,
     specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
