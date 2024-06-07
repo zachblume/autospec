@@ -38,7 +38,7 @@ npm install
 # Generate and run 10 specs to test TodoMVC, a classic web app example:
 URL="https://todomvc.com/examples/react/dist/" SPEC_LIMIT=10 node index.js
 
-# Logs are printed to the console like so, as well as to a trajectories/\*\* folder
+# Logs are printed to the console like so, as well as to a trajectories/** folder
 # alongside a video, png and HTML/JSON DOM snapshots:
 
 Test Summary:
