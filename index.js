@@ -1,20 +1,26 @@
-import OpenAI from "openai";
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
+import { anthropic } from "@ai-sdk/anthropic";
+import { z } from "zod";
 import playwright from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";
 import winston from "winston";
 import chalk from "chalk";
-import stripAnsi from "strip-ansi";
 import { createCanvas, loadImage } from "canvas";
-
 dotenv.config();
 
 const testUrl = process.env.URL || "http://localhost:3000";
-const globalLimitToNumberOfSpecs = process.env.LIMIT_TO_NUMBER_OF_SPECS || 10;
+const globalLimitToNumberOfSpecs = process.env.LIMIT_TO_NUMBER_OF_SPECS || 1;
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+const modelConfigs = {
+    "gemini-1.5-flash-latest": google("models/gemini-1.5-flash-latest"),
+    "gpt-4o": openai("gpt-4o"),
+    "claude-3-haiku": anthropic("claude-3-haiku-20240307"),
+};
+const modelConfig =
+    modelConfigs[process.env.MODEL || "gemini-1.5-flash-latest"];
 
 const magicStrings = {
     specPassed: "The spec passed",
@@ -36,8 +42,9 @@ instructions:
       going to run these checks immediately after you describe the
       application, so if you describe it too literally or reliant on the
       current state like strings, you may be overfitting.
-    - You only respond with only the JSON array of your test plan and
-      nothing else, without prefixes or suffixes.
+    - You respond with a JSON object containing a single key,
+      'arrayOfSpecs', which is a JSON array of your test plan and nothing
+      else, without prefixes or suffixes.
     - The array should be an array of strings, with no further object
       complexity (we will call these 'specs').
     - Covering the most amount of user journeys with the fewest amount of
@@ -89,7 +96,7 @@ instructions:
 3. You have an API of actions you can take: type Action = { action: String;
     cssSelector?: String; nth?: Number; string?: String; key?: String;
     deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
-    String; fullProseExplanationOfReasoning100charmax?: String;
+    String; explanationWhySpecComplete?: String;
     }
 
     The possible actions are:
@@ -106,7 +113,7 @@ instructions:
             action:"markSpecAsComplete";
             reason:
                 "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
-            fullProseExplanationOfReasoning100charmax: String
+            explanationWhySpecComplete: String
         },
     ];
 
@@ -136,9 +143,33 @@ instructions:
       or anything like that.
 `;
 
-const removeColorsFormat = winston.format((info) => {
-    info.message = stripAnsi(info.message);
-    return info;
+const testPlanSchema = z.object({
+    arrayOfSpecs: z.array(z.string()),
+});
+const actionStepSchema = z.object({
+    planningThoughtAboutTheActionIWillTake: z.string(),
+    action: z.object({
+        action: z.string(
+            "hoverOver",
+            "clickOn",
+            "doubleClickOn",
+            "keyboardInputString",
+            "keyboardInputSingleKey",
+            "scroll",
+            "hardWait",
+            "gotoURL",
+            "markSpecAsComplete",
+        ),
+        cssSelector: z.string().optional(),
+        nth: z.number().optional(),
+        string: z.string().optional(),
+        key: z.string().optional(),
+        deltaX: z.number().optional(),
+        deltaY: z.number().optional(),
+        milliseconds: z.number().optional(),
+        reason: z.string().optional(),
+        explanationWhySpecComplete: z.string().optional(),
+    }),
 });
 
 const logger = winston.createLogger({
@@ -166,7 +197,6 @@ async function main() {
         new winston.transports.File({
             filename: `./trajectories/${runId}/combined.log`,
             format: winston.format.combine(
-                removeColorsFormat(),
                 winston.format.printf(
                     ({ timestamp, level, message }) =>
                         `${timestamp} [${level.toUpperCase()}] - ${message}`,
@@ -208,43 +238,20 @@ async function main() {
     }
 }
 
-async function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
+async function newCompletion({ messages, schema }) {
+    const { object } = await generateObject({
+        model: modelConfig,
+        messages,
+        temperature: 0.0,
+        maxRetries: 5,
+        maxTokens: 1000,
+        seed: 0,
+        schema,
+    });
 
-async function newCompletion({ messages }) {
-    let attempts = 0;
-    const maxAttempts = 99;
+    logger.info(JSON.stringify(object, null, 4));
 
-    while (attempts < maxAttempts) {
-        try {
-            const output = await openai.chat.completions.create({
-                messages,
-                model: "gpt-4o",
-                max_tokens: 1000,
-                temperature: 0.0,
-                n: 1,
-                seed: 0,
-            });
-
-            logger.info(output.choices[0].message.content);
-
-            return output;
-        } catch (error) {
-            if (error.status === 429) {
-                attempts++;
-                const retryAfter = parseInt(error.headers["retry-after-ms"]);
-                logger.warn(
-                    `Rate limit reached. Retrying in ${retryAfter / 1000} seconds...`,
-                );
-                await sleep(retryAfter);
-            } else {
-                throw error; // Rethrow other errors
-            }
-        }
-    }
-
-    throw new Error("Openai API maximum retries exceeded");
+    return object;
 }
 
 async function initializeBrowser({ runId, browser: browserPassedThrough }) {
@@ -332,13 +339,9 @@ async function getVideoFrames({ runId }) {
                 .map((file) => {
                     const path = `./trajectories/${runId}/${file}`;
                     const screenshot = fs.readFileSync(path);
-                    const base64utf8 = screenshot.toString("base64");
                     return {
-                        type: "image_url",
-                        image_url: {
-                            url: `data:image/png;base64,${base64utf8}`,
-                            // detail: "low",
-                        },
+                        type: "image",
+                        image: screenshot,
                     };
                 });
             resolve({ videoFrames: frames });
@@ -364,12 +367,12 @@ async function createTestPlan({ videoFrames }) {
         },
     ];
 
-    const testPlanChoices = await newCompletion({
+    const testPlan = await newCompletion({
         messages: conversationHistory,
+        schema: testPlanSchema,
     });
 
-    const testPlan = testPlanChoices.choices[0].message.content;
-    const testPlanJson = JSON.parse(testPlan);
+    const testPlanJson = testPlan?.arrayOfSpecs;
 
     if (!Array.isArray(testPlanJson)) {
         throw new Error("Test plan is not an array");
@@ -417,8 +420,6 @@ async function runTestSpec({
             const screenshot = fs.readFileSync(
                 `./trajectories/${runId}/screenshot-${specId}-${k}.png`,
             );
-            const base64utf8 = screenshot.toString("base64");
-            const screenshotImageUrl = `data:image/png;base64,${base64utf8}`;
 
             const { x: currentX, y: currentY } = await page.evaluate(() =>
                 window.getMousePosition(),
@@ -436,10 +437,8 @@ async function runTestSpec({
                         `,
                     },
                     {
-                        type: "image_url",
-                        image_url: {
-                            url: screenshotImageUrl,
-                        },
+                        type: "image",
+                        image: screenshot,
                     },
                     {
                         type: "text",
@@ -469,24 +468,16 @@ async function runTestSpec({
                 ],
             });
 
-            const specFeedback = await newCompletion({
+            const action = await newCompletion({
                 messages: conversationHistory,
+                schema: actionStepSchema,
             });
 
-            const feedback = specFeedback.choices[0].message.content;
             conversationHistory.push({
                 role: "assistant",
-                content: feedback,
+                content: JSON.stringify(action),
             });
 
-            let action;
-            try {
-                action = JSON.parse(feedback);
-            } catch (e) {
-                logger.error("Failed to parse action", feedback);
-                logger.error(e);
-                break;
-            }
             actionsTaken.push(action);
             const result = await executeAction({ page, action });
             if (result?.error) {
@@ -506,24 +497,23 @@ async function runTestSpec({
                 });
             }
 
-            if (feedback.includes(magicStrings.specPassed)) {
+            if (JSON.stringify(action).includes(magicStrings.specPassed)) {
                 specFulfilled = true;
                 testResults.push({
                     spec,
                     status: "passed",
                     actions: actionsTaken,
                 });
-            } else if (feedback.includes(magicStrings.specFailed)) {
+            } else if (
+                JSON.stringify(action).includes(magicStrings.specFailed)
+            ) {
                 logger.info("Spec failed");
                 logger.info("Reasoning:");
-                logger.info(
-                    action?.action?.fullProseExplanationOfReasoning100charmax,
-                );
+                logger.info(action?.action?.explanationWhySpecComplete);
                 testResults.push({
                     spec,
                     status: "failed",
-                    reason: action?.action
-                        ?.fullProseExplanationOfReasoning100charmax,
+                    reason: action?.action?.explanationWhySpecComplete,
                     actions: actionsTaken,
                 });
                 specFulfilled = true;
