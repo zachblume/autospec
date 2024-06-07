@@ -1,21 +1,17 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createCanvas, loadImage } from "canvas";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
-import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
-import playwright from "playwright";
+import chalk from "chalk";
 import dotenv from "dotenv";
 import fs from "fs";
-import winston from "winston";
-import chalk from "chalk";
+import playwright from "playwright";
 import stripAnsi from "strip-ansi";
-import { createCanvas, loadImage } from "canvas";
+import winston from "winston";
+
 dotenv.config();
-const modelConfigs = {
-    "gemini-1.5-flash-latest": google("models/gemini-1.5-flash-latest"),
-    "gpt-4o": openai("gpt-4o"),
-    "claude-3-haiku": anthropic("claude-3-haiku-20240307"),
-};
 
 const magicStrings = {
     specPassed: "The spec passed",
@@ -99,8 +95,8 @@ instructions:
         { action:"hoverOver"; cssSelector: String; nth: Number },
         { action:"clickOn", cssSelector: String; nth: Number },
         { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
+        // { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
+        // { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
         { action:"gotoURL"; url: String },
@@ -183,10 +179,11 @@ let testResults = [];
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
-    model = process.env.MODEL || "gemini-1.5-flash-latest",
+    modelName = process.env.MODEL || "gemini-1.5-flash-latest",
     specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
+    apiKey = null,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -207,6 +204,50 @@ export async function main({
         }),
     );
 
+    // Roughly validate that an appropriate API key is provided by flag or env
+    if (!apiKey) {
+        const errorMsg = ({ modelName, keyName }) => {
+            throw new Error(
+                `You specified ${modelName} as model but did not provide an ` +
+                    `${keyName} API key.\nPlease provide an API key via the ` +
+                    `--apikey flag (e.g. npx autospecai --model gpt-4o ` +
+                    `--apikey YOUR_KEY_HERE) or the ${keyName} environment ` +
+                    `variable.`,
+            );
+        };
+        if (modelName === "gpt-4o" && !process.env.OPENAI_API_KEY) {
+            errorMsg({ modelName: "GPT-4o", keyName: "OPENAI_API_KEY" });
+        }
+        if (
+            modelName === "gemini-1.5-flash-latest" &&
+            !process.env.GOOGLE_GENERATIVE_AI_API_KEY
+        ) {
+            errorMsg({
+                modelName: "Gemini Flash",
+                keyName: "GOOGLE_GENERATIVE_AI_API_KEY",
+            });
+        }
+        if (modelName === "claude-3-haiku" && !process.env.ANTHROPIC_API_KEY) {
+            errorMsg({
+                modelName: "Claude Haiku",
+                keyName: "ANTHROPIC_API_KEY",
+            });
+        }
+    }
+
+    const modelConfigs = {
+        "gemini-1.5-flash-latest": createGoogleGenerativeAI({
+            apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        })("models/gemini-1.5-flash-latest"),
+        "gpt-4o": createOpenAI({
+            apiKey: apiKey || process.env.OPENAI_API_KEY,
+        })("gpt-4o"),
+        "claude-3-haiku": createAnthropic({
+            apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
+        })("claude-3-haiku-20240307"),
+    };
+    const model = modelConfigs[modelName];
+
     const { browser, context, page, client } = await initializeBrowser({
         runId,
     });
@@ -214,7 +255,11 @@ export async function main({
     try {
         await visitPages({ page, runId, client, testUrl });
         const { videoFrames } = await getVideoFrames({ runId });
-        const { testPlan } = await createTestPlan({ videoFrames, model });
+        const { testPlan } = await createTestPlan({
+            videoFrames,
+            model,
+            apiKey,
+        });
 
         // Cleanup the context, but leave the browser alive as a global
         await context.close();
@@ -226,6 +271,7 @@ export async function main({
                 browser,
                 specId: i,
                 model,
+                apiKey,
                 testUrl,
             }),
         );
@@ -249,7 +295,7 @@ export async function main({
 
 async function newCompletion({ messages, schema, model }) {
     const { object } = await generateObject({
-        model: modelConfigs[model],
+        model,
         messages,
         temperature: 0.0,
         maxRetries: 5,
@@ -609,7 +655,8 @@ async function executeAction({
     }
 }
 
-// For now, let's leave client in eslint-disable-next-line no-unused-vars
+// For now, let's leave client in
+// eslint-disable-next-line no-unused-vars
 async function saveScreenshotWithCursor({ page, path, client }) {
     // Capture the HTML snapshot
     const html = await page.content();

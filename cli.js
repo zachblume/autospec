@@ -47,6 +47,12 @@ if (args.includes("--help") || args.includes("-h")) {
                               * "gemini-1.5-flash-latest"
                               * "claude-3-haiku"
                               * (note: Gemini flash is free up to rate limits)
+        --apikey <key>       The relevant API key for the chosen model's API.
+                              * If not specified, we'll fall back on the
+                                following environment variables:
+                                * OPENAI_API_KEY
+                                * GOOGLE_GENERATIVE_AI_API_KEY
+                                * ANTHROPIC_API_KEY
     `);
     process.exit(0);
 }
@@ -59,13 +65,21 @@ if (!testUrl) {
     process.exit(1);
 }
 
-const model = getArgValue("--model", "gpt-4o");
+const apiKey = getArgValue("--apikey", null);
+if (!apiKey) {
+    console.warn(
+        "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
+    );
+}
+
+const modelName = getArgValue("--model", "gpt-4o");
 const specLimit = getArgValue("--spec_limit", 10);
 
 main({
     testUrl,
-    model,
+    modelName,
     specLimit,
+    apiKey,
 })
     .then(console.log)
     .catch(console.error);
