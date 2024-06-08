@@ -138,30 +138,77 @@ const testPlanSchema = z.object({
     arrayOfSpecs: z.array(z.string()),
 });
 
+// Define schemas for each action type
+const hoverOverActionSchema = z.object({
+    action: z.literal("hoverOver"),
+    cssSelector: z.string(),
+    nth: z.number(),
+});
+
+const clickOnActionSchema = z.object({
+    action: z.literal("clickOn"),
+    cssSelector: z.string(),
+    nth: z.number(),
+});
+
+const doubleClickOnActionSchema = z.object({
+    action: z.literal("doubleClickOn"),
+    cssSelector: z.string(),
+    nth: z.number(),
+});
+
+const keyboardInputStringActionSchema = z.object({
+    action: z.literal("keyboardInputString"),
+    cssSelector: z.string(),
+    nth: z.number(),
+    string: z.string(),
+});
+
+const keyboardInputSingleKeyActionSchema = z.object({
+    action: z.literal("keyboardInputSingleKey"),
+    cssSelector: z.string(),
+    nth: z.number(),
+    key: z.string(),
+});
+
+const scrollActionSchema = z.object({
+    action: z.literal("scroll"),
+    deltaX: z.number(),
+    deltaY: z.number(),
+});
+
+const hardWaitActionSchema = z.object({
+    action: z.literal("hardWait"),
+    milliseconds: z.number(),
+});
+
+const gotoURLActionSchema = z.object({
+    action: z.literal("gotoURL"),
+    url: z.string(),
+});
+
+const markSpecAsCompleteActionSchema = z.object({
+    action: z.literal("markSpecAsComplete"),
+    reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
+    explanationWhySpecComplete: z.string(),
+});
+
+// Create a discriminated union of all action schemas
+const actionSchema = z.discriminatedUnion("action", [
+    hoverOverActionSchema,
+    clickOnActionSchema,
+    doubleClickOnActionSchema,
+    keyboardInputStringActionSchema,
+    keyboardInputSingleKeyActionSchema,
+    scrollActionSchema,
+    hardWaitActionSchema,
+    gotoURLActionSchema,
+    markSpecAsCompleteActionSchema,
+]);
+
 const actionStepSchema = z.object({
     planningThoughtAboutTheActionIWillTake: z.string(),
-    action: z.object({
-        action: z.string(
-            "hoverOver",
-            "clickOn",
-            "doubleClickOn",
-            "keyboardInputString",
-            "keyboardInputSingleKey",
-            "scroll",
-            "hardWait",
-            "gotoURL",
-            "markSpecAsComplete",
-        ),
-        cssSelector: z.string().optional(),
-        nth: z.number().optional(),
-        string: z.string().optional(),
-        key: z.string().optional(),
-        deltaX: z.number().optional(),
-        deltaY: z.number().optional(),
-        milliseconds: z.number().optional(),
-        reason: z.string().optional(),
-        explanationWhySpecComplete: z.string().optional(),
-    }),
+    action: actionSchema,
 });
 
 const logger = winston.createLogger({
