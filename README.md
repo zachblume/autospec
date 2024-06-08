@@ -39,8 +39,8 @@ nano .env # edit as you like
 ### Learn more about configuration
 
 ```bash
-> npx autospec --help
-    Usage: npx autospec --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
+> npx autospecai --help
+    Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
 
     Required:
     --url <url>          The target URL to run the autospec tests against.
