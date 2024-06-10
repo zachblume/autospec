@@ -21,10 +21,19 @@ Generate and run 10 specs on TodoMVC, a classic example web app:
 npx autospecai --url https://todomvc.com/examples/react/dist/ --apikey YOUR_OPENAI_API_KEY
 ```
 
-That's it!
-
 You'll need to say "yes" to install the autospecai package, and the first run
-will take a few minutes to download dependencies like browser binaries, etc.
+may take a few minutes to download dependencies like browser binaries that are
+used to execute the test environment.
+
+When the run completes, you'll see a summary of the tests that were run and
+whether they passed or failed.
+
+The successful specs will be saved within a `tests` folder in your working
+directory. You can re-execute these tests at any time by running:
+
+```
+npx playwright test
+```
 
 ### Using environment variables instead of passing keys as a flag
 

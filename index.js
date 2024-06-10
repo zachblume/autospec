@@ -95,8 +95,8 @@ instructions:
         { action:"hoverOver"; cssSelector: String; nth: Number },
         { action:"clickOn", cssSelector: String; nth: Number },
         { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        // { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        // { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
+        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
+        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
         { action:"gotoURL"; url: String },
@@ -333,7 +333,7 @@ export async function main({
     } finally {
         await browser.close();
         logger.info("Video recording should be complete.");
-        printTestResults();
+        await printTestResults({ runId, testResults, testUrl });
 
         process.exit(
             testResults.every((result) => result.status === "passed") ? 0 : 1,
@@ -754,7 +754,7 @@ async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-function printTestResults() {
+async function printTestResults({ runId, testResults, testUrl }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 
@@ -776,4 +776,53 @@ function printTestResults() {
             );
         });
     });
+
+    // Write the successful tests to a file
+    const testFilePath = `./trajectories/${runId}/successfulTests-${runId}.spec.js`;
+    let fileContent = `import { test } from '@playwright/test';\n\n`;
+
+    const successfulTests = testResults.filter(
+        (result) => result.status === "passed",
+    );
+
+    // Add a beforeEach test hook to goto the testurl
+    fileContent += `test.beforeEach(async ({ page }) => {\n`;
+    fileContent += `  await page.goto('${testUrl}');\n`;
+    fileContent += `});\n\n`;
+
+    successfulTests.forEach(({ spec, actions }, index) => {
+        fileContent += `test("${spec}", async ({ page }) => {\n`;
+        actions.forEach(({ action }) => {
+            switch (action.action) {
+                case "hoverOver":
+                    fileContent += `  await page.hover('${action.cssSelector}');\n`;
+                    break;
+                case "clickOn":
+                    fileContent += `  await page.click('${action.cssSelector}');\n`;
+                    break;
+                case "doubleClickOn":
+                    fileContent += `  await page.dblclick('${action.cssSelector}');\n`;
+                    break;
+                case "keyboardInputString":
+                    fileContent += `  await page.fill('${action.cssSelector}', '${action.string}');\n`;
+                    break;
+                case "keyboardInputSingleKey":
+                    fileContent += `  await page.press('${action.cssSelector}', '${action.key}');\n`;
+                    break;
+                case "scroll":
+                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
+                    break;
+                case "hardWait":
+                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
+                    break;
+                case "gotoURL":
+                    fileContent += `  await page.goto('${action.url}');\n`;
+                    break;
+            }
+        });
+        fileContent += `});\n\n`;
+    });
+
+    fs.writeFileSync(testFilePath, fileContent, "utf-8");
+    logger.info(`Successful tests written to ${testFilePath}`);
 }
