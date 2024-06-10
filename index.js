@@ -139,62 +139,62 @@ export const testPlanSchema = z.object({
 });
 
 // Define schemas for each action type
-const hoverOverActionSchema = z.object({
+export const hoverOverActionSchema = z.object({
     action: z.literal("hoverOver"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const clickOnActionSchema = z.object({
+export const clickOnActionSchema = z.object({
     action: z.literal("clickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const doubleClickOnActionSchema = z.object({
+export const doubleClickOnActionSchema = z.object({
     action: z.literal("doubleClickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const keyboardInputStringActionSchema = z.object({
+export const keyboardInputStringActionSchema = z.object({
     action: z.literal("keyboardInputString"),
     cssSelector: z.string(),
     nth: z.number(),
     string: z.string(),
 });
 
-const keyboardInputSingleKeyActionSchema = z.object({
+export const keyboardInputSingleKeyActionSchema = z.object({
     action: z.literal("keyboardInputSingleKey"),
     cssSelector: z.string(),
     nth: z.number(),
     key: z.string(),
 });
 
-const scrollActionSchema = z.object({
+export const scrollActionSchema = z.object({
     action: z.literal("scroll"),
     deltaX: z.number(),
     deltaY: z.number(),
 });
 
-const hardWaitActionSchema = z.object({
+export const hardWaitActionSchema = z.object({
     action: z.literal("hardWait"),
     milliseconds: z.number(),
 });
 
-const gotoURLActionSchema = z.object({
+export const gotoURLActionSchema = z.object({
     action: z.literal("gotoURL"),
     url: z.string(),
 });
 
-const markSpecAsCompleteActionSchema = z.object({
+export const markSpecAsCompleteActionSchema = z.object({
     action: z.literal("markSpecAsComplete"),
     reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
     explanationWhySpecComplete: z.string(),
 });
 
 // Create a discriminated union of all action schemas
-const actionSchema = z.discriminatedUnion("action", [
+export const actionSchema = z.discriminatedUnion("action", [
     hoverOverActionSchema,
     clickOnActionSchema,
     doubleClickOnActionSchema,
@@ -206,12 +206,12 @@ const actionSchema = z.discriminatedUnion("action", [
     markSpecAsCompleteActionSchema,
 ]);
 
-const actionStepSchema = z.object({
+export const actionStepSchema = z.object({
     planningThoughtAboutTheActionIWillTake: z.string(),
     action: actionSchema,
 });
 
-const logger = winston.createLogger({
+export const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
         winston.format.timestamp(),
@@ -222,7 +222,7 @@ const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
-let testResults = [];
+export const testResults = [];
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
@@ -376,7 +376,7 @@ async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
     });
 }
 
-async function initializeBrowser({
+export async function initializeBrowser({
     runId,
     browser: browserPassedThrough,
     testUrl,
@@ -754,7 +754,7 @@ export async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-async function printTestResults({ runId, testResults, testUrl }) {
+export async function printTestResults({ runId, testResults, testUrl }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 

@@ -1,4 +1,9 @@
 export default {
+    transform: {
+        "^.+\\.jsx?$": "babel-jest",
+        "^.+\\.mjs$": "babel-jest",
+    },
+    moduleFileExtensions: ["js", "jsx", "mjs"],
     testEnvironment: "node",
-    transform: {},
+    transformIgnorePatterns: ["/node_modules/(?!(@?\\w+-?\\w*?|-?\\w+))/"],
 };

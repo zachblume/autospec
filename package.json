@@ -20,7 +20,8 @@
     "license": "MIT",
     "scripts": {
         "lint": "eslint . --fix",
-        "format": "npx prettier --write ."
+        "format": "npx prettier --write .",
+        "test": "npx jest --bail --passWithNoTests --testPathPattern unittests"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx,json,css,scss}": "prettier --write"
@@ -30,7 +31,7 @@
         "@ai-sdk/google": "^0.0.20",
         "@ai-sdk/openai": "^0.0.24",
         "@playwright/test": "^1.44.1",
-        "ai": "^3.1.30",
+        "ai": "^3.1.31",
         "canvas": "^2.11.2",
         "chalk": "^5.3.0",
         "dotenv": "^16.4.5",
@@ -41,7 +42,9 @@
         "zod": "^3.23.8"
     },
     "devDependencies": {
+        "@babel/preset-env": "^7.24.7",
         "@eslint/js": "^9.4.0",
+        "babel-jest": "^29.7.0",
         "eslint": "^9.4.0",
         "globals": "^15.4.0",
         "husky": "^9.0.11",

@@ -3,5 +3,5 @@
 
 npm install
 npx lint-staged
-npx jest --bail --passWithNoTests --testPathPattern unittests
+npm run test
 npx prettier --write .
