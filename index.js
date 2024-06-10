@@ -297,6 +297,7 @@ export async function main({
 
     const { browser, context, page, client } = await initializeBrowser({
         runId,
+        testUrl,
     });
 
     try {
@@ -356,7 +357,30 @@ async function newCompletion({ messages, schema, model }) {
     return object;
 }
 
-async function initializeBrowser({ runId, browser: browserPassedThrough }) {
+async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
+    const hostOfTestUrl = new URL(testUrl).host;
+    await page.on("frameNavigated", async (frame) => {
+        const currentUrl = frame.url();
+        const urlObject = new URL(currentUrl);
+        if (urlObject.host !== hostOfTestUrl) {
+            await frame.evaluate(() => {
+                window.stop();
+            });
+            throw new Error(
+                `Navigation to ${currentUrl} was stopped because that URL is
+                not on the same host as the test URL, ${testUrl}. Use the
+                gotoURL action to navigate back to the previous URL and
+                recover from this failure state.`,
+            );
+        }
+    });
+}
+
+async function initializeBrowser({
+    runId,
+    browser: browserPassedThrough,
+    testUrl,
+}) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
     const context = await browser.newContext({
@@ -392,6 +416,8 @@ async function initializeBrowser({ runId, browser: browserPassedThrough }) {
         };
         window.getMousePosition = () => ({ x, y });
     });
+
+    await preventBrowserFromNavigatingToOtherHosts({ page, testUrl });
 
     return { browser, context, page, client };
 }
@@ -501,6 +527,7 @@ async function runTestSpec({
     const { context, page, client } = await initializeBrowser({
         runId,
         browser,
+        testUrl,
     });
 
     let specFulfilled = false;
