@@ -13,12 +13,12 @@ import winston from "winston";
 
 dotenv.config();
 
-const magicStrings = {
+export const magicStrings = {
     specPassed: "The spec passed",
     specFailed: "The spec failed",
 };
 
-const initialSystemPrompt = `
+export const initialSystemPrompt = `
 You are an automated QA agent tasked with testing a web application just as
 software engineer assigned to manual testing would. Here are your
 instructions:
@@ -134,67 +134,67 @@ instructions:
       or anything like that.
 `;
 
-const testPlanSchema = z.object({
+export const testPlanSchema = z.object({
     arrayOfSpecs: z.array(z.string()),
 });
 
 // Define schemas for each action type
-const hoverOverActionSchema = z.object({
+export const hoverOverActionSchema = z.object({
     action: z.literal("hoverOver"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const clickOnActionSchema = z.object({
+export const clickOnActionSchema = z.object({
     action: z.literal("clickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const doubleClickOnActionSchema = z.object({
+export const doubleClickOnActionSchema = z.object({
     action: z.literal("doubleClickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
-const keyboardInputStringActionSchema = z.object({
+export const keyboardInputStringActionSchema = z.object({
     action: z.literal("keyboardInputString"),
     cssSelector: z.string(),
     nth: z.number(),
     string: z.string(),
 });
 
-const keyboardInputSingleKeyActionSchema = z.object({
+export const keyboardInputSingleKeyActionSchema = z.object({
     action: z.literal("keyboardInputSingleKey"),
     cssSelector: z.string(),
     nth: z.number(),
     key: z.string(),
 });
 
-const scrollActionSchema = z.object({
+export const scrollActionSchema = z.object({
     action: z.literal("scroll"),
     deltaX: z.number(),
     deltaY: z.number(),
 });
 
-const hardWaitActionSchema = z.object({
+export const hardWaitActionSchema = z.object({
     action: z.literal("hardWait"),
     milliseconds: z.number(),
 });
 
-const gotoURLActionSchema = z.object({
+export const gotoURLActionSchema = z.object({
     action: z.literal("gotoURL"),
     url: z.string(),
 });
 
-const markSpecAsCompleteActionSchema = z.object({
+export const markSpecAsCompleteActionSchema = z.object({
     action: z.literal("markSpecAsComplete"),
     reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
     explanationWhySpecComplete: z.string(),
 });
 
 // Create a discriminated union of all action schemas
-const actionSchema = z.discriminatedUnion("action", [
+export const actionSchema = z.discriminatedUnion("action", [
     hoverOverActionSchema,
     clickOnActionSchema,
     doubleClickOnActionSchema,
@@ -206,12 +206,12 @@ const actionSchema = z.discriminatedUnion("action", [
     markSpecAsCompleteActionSchema,
 ]);
 
-const actionStepSchema = z.object({
+export const actionStepSchema = z.object({
     planningThoughtAboutTheActionIWillTake: z.string(),
     action: actionSchema,
 });
 
-const logger = winston.createLogger({
+export const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
         winston.format.timestamp(),
@@ -222,7 +222,7 @@ const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
-let testResults = [];
+export const testResults = [];
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
@@ -341,7 +341,7 @@ export async function main({
     }
 }
 
-async function newCompletion({ messages, schema, model }) {
+export async function newCompletion({ messages, schema, model }) {
     const { object } = await generateObject({
         model,
         messages,
@@ -376,7 +376,7 @@ async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
     });
 }
 
-async function initializeBrowser({
+export async function initializeBrowser({
     runId,
     browser: browserPassedThrough,
     testUrl,
@@ -422,7 +422,7 @@ async function initializeBrowser({
     return { browser, context, page, client };
 }
 
-async function visitPages({ page, runId, client, testUrl }) {
+export async function visitPages({ page, runId, client, testUrl }) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -454,7 +454,7 @@ async function visitPages({ page, runId, client, testUrl }) {
     }
 }
 
-async function getVideoFrames({ runId }) {
+export async function getVideoFrames({ runId }) {
     return new Promise((resolve, reject) => {
         fs.readdir(`./trajectories/${runId}`, (err, files) => {
             if (err) {
@@ -477,7 +477,7 @@ async function getVideoFrames({ runId }) {
     });
 }
 
-async function createTestPlan({ videoFrames, model }) {
+export async function createTestPlan({ videoFrames, model }) {
     const conversationHistory = [
         {
             role: "system",
@@ -515,7 +515,7 @@ async function createTestPlan({ videoFrames, model }) {
     return { testPlan: testPlanJson };
 }
 
-async function runTestSpec({
+export async function runTestSpec({
     runId,
     spec,
     browser,
@@ -667,7 +667,7 @@ async function runTestSpec({
     }
 }
 
-async function executeAction({
+export async function executeAction({
     page,
     action: { action, planningThoughtAboutTheActionIWillTake },
 }) {
@@ -731,7 +731,7 @@ async function executeAction({
 
 // For now, let's leave client in
 // eslint-disable-next-line no-unused-vars
-async function saveScreenshotWithCursor({ page, path, client }) {
+export async function saveScreenshotWithCursor({ page, path, client }) {
     // Capture the HTML snapshot
     const html = await page.content();
     fs.writeFileSync(path.replace(".png", ".html"), html);
@@ -754,7 +754,7 @@ async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-async function printTestResults({ runId, testResults, testUrl }) {
+export async function printTestResults({ runId, testResults, testUrl }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 
