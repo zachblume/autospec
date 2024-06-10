@@ -95,8 +95,8 @@ instructions:
         { action:"hoverOver"; cssSelector: String; nth: Number },
         { action:"clickOn", cssSelector: String; nth: Number },
         { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        // { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        // { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
+        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
+        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
         { action:"gotoURL"; url: String },
@@ -138,33 +138,80 @@ export const testPlanSchema = z.object({
     arrayOfSpecs: z.array(z.string()),
 });
 
-export const actionStepSchema = z.object({
-    planningThoughtAboutTheActionIWillTake: z.string(),
-    action: z.object({
-        action: z.string(
-            "hoverOver",
-            "clickOn",
-            "doubleClickOn",
-            "keyboardInputString",
-            "keyboardInputSingleKey",
-            "scroll",
-            "hardWait",
-            "gotoURL",
-            "markSpecAsComplete",
-        ),
-        cssSelector: z.string().optional(),
-        nth: z.number().optional(),
-        string: z.string().optional(),
-        key: z.string().optional(),
-        deltaX: z.number().optional(),
-        deltaY: z.number().optional(),
-        milliseconds: z.number().optional(),
-        reason: z.string().optional(),
-        explanationWhySpecComplete: z.string().optional(),
-    }),
+// Define schemas for each action type
+const hoverOverActionSchema = z.object({
+    action: z.literal("hoverOver"),
+    cssSelector: z.string(),
+    nth: z.number(),
 });
 
-export const logger = winston.createLogger({
+const clickOnActionSchema = z.object({
+    action: z.literal("clickOn"),
+    cssSelector: z.string(),
+    nth: z.number(),
+});
+
+const doubleClickOnActionSchema = z.object({
+    action: z.literal("doubleClickOn"),
+    cssSelector: z.string(),
+    nth: z.number(),
+});
+
+const keyboardInputStringActionSchema = z.object({
+    action: z.literal("keyboardInputString"),
+    cssSelector: z.string(),
+    nth: z.number(),
+    string: z.string(),
+});
+
+const keyboardInputSingleKeyActionSchema = z.object({
+    action: z.literal("keyboardInputSingleKey"),
+    cssSelector: z.string(),
+    nth: z.number(),
+    key: z.string(),
+});
+
+const scrollActionSchema = z.object({
+    action: z.literal("scroll"),
+    deltaX: z.number(),
+    deltaY: z.number(),
+});
+
+const hardWaitActionSchema = z.object({
+    action: z.literal("hardWait"),
+    milliseconds: z.number(),
+});
+
+const gotoURLActionSchema = z.object({
+    action: z.literal("gotoURL"),
+    url: z.string(),
+});
+
+const markSpecAsCompleteActionSchema = z.object({
+    action: z.literal("markSpecAsComplete"),
+    reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
+    explanationWhySpecComplete: z.string(),
+});
+
+// Create a discriminated union of all action schemas
+const actionSchema = z.discriminatedUnion("action", [
+    hoverOverActionSchema,
+    clickOnActionSchema,
+    doubleClickOnActionSchema,
+    keyboardInputStringActionSchema,
+    keyboardInputSingleKeyActionSchema,
+    scrollActionSchema,
+    hardWaitActionSchema,
+    gotoURLActionSchema,
+    markSpecAsCompleteActionSchema,
+]);
+
+const actionStepSchema = z.object({
+    planningThoughtAboutTheActionIWillTake: z.string(),
+    action: actionSchema,
+});
+
+const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
         winston.format.timestamp(),
@@ -250,6 +297,7 @@ export async function main({
 
     const { browser, context, page, client } = await initializeBrowser({
         runId,
+        testUrl,
     });
 
     try {
@@ -285,7 +333,7 @@ export async function main({
     } finally {
         await browser.close();
         logger.info("Video recording should be complete.");
-        printTestResults();
+        await printTestResults({ runId, testResults, testUrl });
 
         process.exit(
             testResults.every((result) => result.status === "passed") ? 0 : 1,
@@ -309,9 +357,29 @@ export async function newCompletion({ messages, schema, model }) {
     return object;
 }
 
-export async function initializeBrowser({
+async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
+    const hostOfTestUrl = new URL(testUrl).host;
+    await page.on("frameNavigated", async (frame) => {
+        const currentUrl = frame.url();
+        const urlObject = new URL(currentUrl);
+        if (urlObject.host !== hostOfTestUrl) {
+            await frame.evaluate(() => {
+                window.stop();
+            });
+            throw new Error(
+                `Navigation to ${currentUrl} was stopped because that URL is
+                not on the same host as the test URL, ${testUrl}. Use the
+                gotoURL action to navigate back to the previous URL and
+                recover from this failure state.`,
+            );
+        }
+    });
+}
+
+async function initializeBrowser({
     runId,
     browser: browserPassedThrough,
+    testUrl,
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
@@ -348,6 +416,8 @@ export async function initializeBrowser({
         };
         window.getMousePosition = () => ({ x, y });
     });
+
+    await preventBrowserFromNavigatingToOtherHosts({ page, testUrl });
 
     return { browser, context, page, client };
 }
@@ -457,6 +527,7 @@ export async function runTestSpec({
     const { context, page, client } = await initializeBrowser({
         runId,
         browser,
+        testUrl,
     });
 
     let specFulfilled = false;
@@ -683,7 +754,7 @@ export async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-export function printTestResults() {
+async function printTestResults({ runId, testResults, testUrl }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 
@@ -705,4 +776,53 @@ export function printTestResults() {
             );
         });
     });
+
+    // Write the successful tests to a file
+    const testFilePath = `./trajectories/${runId}/successfulTests-${runId}.spec.js`;
+    let fileContent = `import { test } from '@playwright/test';\n\n`;
+
+    const successfulTests = testResults.filter(
+        (result) => result.status === "passed",
+    );
+
+    // Add a beforeEach test hook to goto the testurl
+    fileContent += `test.beforeEach(async ({ page }) => {\n`;
+    fileContent += `  await page.goto('${testUrl}');\n`;
+    fileContent += `});\n\n`;
+
+    successfulTests.forEach(({ spec, actions }, index) => {
+        fileContent += `test("${spec}", async ({ page }) => {\n`;
+        actions.forEach(({ action }) => {
+            switch (action.action) {
+                case "hoverOver":
+                    fileContent += `  await page.hover('${action.cssSelector}');\n`;
+                    break;
+                case "clickOn":
+                    fileContent += `  await page.click('${action.cssSelector}');\n`;
+                    break;
+                case "doubleClickOn":
+                    fileContent += `  await page.dblclick('${action.cssSelector}');\n`;
+                    break;
+                case "keyboardInputString":
+                    fileContent += `  await page.fill('${action.cssSelector}', '${action.string}');\n`;
+                    break;
+                case "keyboardInputSingleKey":
+                    fileContent += `  await page.press('${action.cssSelector}', '${action.key}');\n`;
+                    break;
+                case "scroll":
+                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
+                    break;
+                case "hardWait":
+                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
+                    break;
+                case "gotoURL":
+                    fileContent += `  await page.goto('${action.url}');\n`;
+                    break;
+            }
+        });
+        fileContent += `});\n\n`;
+    });
+
+    fs.writeFileSync(testFilePath, fileContent, "utf-8");
+    logger.info(`Successful tests written to ${testFilePath}`);
 }

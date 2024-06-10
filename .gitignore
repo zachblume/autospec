@@ -11,3 +11,6 @@ node_modules
 trajectories/*
 # keep .gitkeep though:
 !.gitkeep
+playwright-report
+test-results
+tests/successfulTests*

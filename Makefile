@@ -1,20 +1,10 @@
-.DEFAULT_GOAL := install
-
-install:
-	npm install
-	npx husky install
-	npx playwright install
-	chmod +x ./tests/shouldPass.sh
-	chmod +x ./tests/shouldFail.sh
-
-killautospec:
-	pkill -f index.js || true
+.DEFAULT_GOAL := todomvc
 
 clean:
 	rm -rf trajectories
 	
 realworld:
-	URL="https://demo.realworld.io/" node index
+	npx autospecai --url "https://demo.realworld.io/" --model gemini-1.5-flash-latest
 
 todomvc:
-	URL="https://todomvc.com/examples/react/dist/" node index
+	npx autospecai --url "https://todomvc.com/examples/react/dist/" --model gemini-1.5-flash-latest

@@ -24,7 +24,11 @@ jobs:
                   node-version: "20"
 
             - name: Install dependencies
-              run: make
+              run: >
+                  npm install
+                  npx playwright install
+                  chmod +x ./tests/shouldPass.sh
+                  chmod +x ./tests/shouldFail.sh
 
             - name: Run Autospec Tests
               env:

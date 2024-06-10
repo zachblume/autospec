@@ -12,7 +12,7 @@ const getArgValue = (argName, defaultValue) => {
 
 if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-        Usage: npx autospec --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
+        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
 
         Required:
         --url <url>          The target URL to run the autospec tests against.
