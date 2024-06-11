@@ -17,6 +17,7 @@ behavior.
 
 Generate and run 10 specs on TodoMVC, a classic example web app:
 
+<!-- prettier-ignore -->
 ```
 npx autospecai --url https://todomvc.com/examples/react/dist/ --apikey YOUR_OPENAI_API_KEY
 ```
@@ -31,6 +32,7 @@ whether they passed or failed.
 The successful specs will be saved within the `trajectories` folder in your
 working directory. You can re-execute these tests at any time by running:
 
+<!-- prettier-ignore -->
 ```
 npx playwright test
 ```
@@ -43,6 +45,7 @@ to the testDir in your playwright.config.js file.
 Copy the sample .env file, and fill in the OPENAI_API_KEY
 or GOOGLE_GENERATIVE_AI_API_KEY before running the app:
 
+<!-- prettier-ignore -->
 ```bash
 mv .env.example .env # rename the example to .env
 nano .env # edit as you like
@@ -50,6 +53,7 @@ nano .env # edit as you like
 
 ### Learn more about configuration
 
+<!-- prettier-ignore -->
 ```bash
 > npx autospecai --help
     Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
@@ -79,6 +83,7 @@ nano .env # edit as you like
 Logs are printed to the console like so, as well as to a trajectories/\*\*
 folder alongside a video, png and HTML/JSON DOM snapshots:
 
+<!-- prettier-ignore -->
 ```
 Test Summary:
 ✔ 1. Check if the page loads successfully
@@ -97,25 +102,20 @@ Test Summary:
   5.2) action: keyboardInputSingleKey, cssSelector: input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: I need to press Enter to add the new todo item to the list.
   5.3) action: clickOn, cssSelector: input.toggle, nth: 0, planningThoughtAboutTheActionIWillTake: Now that the todo item is added, I will mark it as completed by clicking the checkbox next to the todo item.
   5.4) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The todo item was successfully marked as completed., planningThoughtAboutTheActionIWillTake: The todo item has been marked as completed, as indicated by the strikethrough text and the checkbox being checked. I will mark the spec as complete.
-✔ 6. Check if a todo item can be edited
-  6.1) action: keyboardInputString, cssSelector: input.new-todo, nth: 0, string: Test Todo Item, planningThoughtAboutTheActionIWillTake: To check if a todo item can be edited, I first need to add a todo item. I will type a todo item in the input field and press Enter.
-  6.2) action: keyboardInputSingleKey, cssSelector: input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: I need to press Enter to add the todo item to the list.
-  6.3) action: doubleClickOn, cssSelector: ul.todo-list li div.view label, nth: 0, planningThoughtAboutTheActionIWillTake: To edit the todo item, I need to double-click on the todo item label.
-  6.4) action: keyboardInputString, cssSelector: ul.todo-list li div.input-container input.new-todo, nth: 0, string: Edited Todo Item, planningThoughtAboutTheActionIWillTake: Now that the todo item is in edit mode, I will change the text of the todo item.
-  6.5) action: keyboardInputSingleKey, cssSelector: ul.todo-list li div.input-container input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: To save the edited todo item, I need to press Enter.
-  6.6) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The todo item was successfully edited and saved as 'Edited Todo Item'., planningThoughtAboutTheActionIWillTake: The todo item has been successfully edited and saved. I will mark the spec as complete.
-✔ 7. Check if a todo item can be deleted
-  7.1) action: keyboardInputString, cssSelector: input.new-todo, nth: 0, string: Test Todo Item, planningThoughtAboutTheActionIWillTake: To check if a todo item can be deleted, I first need to add a todo item. I will type a todo item in the input field and press Enter.
-  7.2) action: keyboardInputSingleKey, cssSelector: input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: I need to press Enter to add the todo item to the list.
-  7.3) action: clickOn, cssSelector: button.destroy, nth: 0, planningThoughtAboutTheActionIWillTake: Now that the todo item is added, I need to click on the delete button (the button with class 'destroy') to delete the todo item.
-  7.4) action: hoverOver, cssSelector: li[data-testid='todo-item'], nth: 0, planningThoughtAboutTheActionIWillTake: The delete button is not visible. I need to hover over the todo item to make the delete button visible.
-  7.5) action: clickOn, cssSelector: button.destroy, nth: 0, planningThoughtAboutTheActionIWillTake: Now that the delete button is visible, I will click on the delete button to delete the todo item.
-  7.6) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The todo item was successfully deleted and is no longer visible on the page., planningThoughtAboutTheActionIWillTake: The todo item has been successfully deleted as it is no longer visible on the page.
-✔ 8. Check if the footer text 'Double-click to edit a todo' is displayed
-  8.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The footer text 'Double-click to edit a todo' is displayed in the HTML snapshot., planningThoughtAboutTheActionIWillTake: I will check if the footer text 'Double-click to edit a todo' is displayed by examining the HTML snapshot.
-✔ 9. Check if the footer text 'Created by the TodoMVC Team' is displayed
-  9.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The footer text 'Created by the TodoMVC Team' is displayed as expected., planningThoughtAboutTheActionIWillTake: I will mark the spec as complete because the footer text 'Created by the TodoMVC Team' is displayed in the screenshot and confirmed in the HTML snapshot.
-✔ 10. Check if the footer text 'Part of TodoMVC' is displayed
-  10.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The footer text 'Part of TodoMVC' is displayed in the HTML snapshot., planningThoughtAboutTheActionIWillTake: I will check the HTML snapshot to see if the footer text 'Part of TodoMVC' is present.
+...
 autospec passed for https://todomvc.com/examples/react/dist/
 ```
+
+### Contributing
+
+autospec is open-source and we welcome contributors! Please open an
+[issue](https://github.com/zachblume/autospec/issues) or
+[pull request](https://github.com/zachblume/autospec/pulls) to get started.
+
+### Contributors
+
+<img src="https://contrib.rocks/image?repo=zachblume/autospec" />
+
+### License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
