@@ -90,7 +90,8 @@ const runBenchmark = async () => {
         if (!fs.existsSync(resultsDir)) {
             fs.mkdirSync(resultsDir);
         }
-        const resultsPath = path.join(resultsDir, "benchmark-results.json");
+        const timestamp = new Date().toISOString().replace(/[^0-9]/g, "");
+        const resultsPath = path.join(resultsDir, `benchmark-results-${timestamp}.json`);
         const metadata = {
             commitSHA,
             datetime,
