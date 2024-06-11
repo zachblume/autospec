@@ -12,7 +12,7 @@ const getArgValue = (argName, defaultValue) => {
 
 if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--help | -h]
+        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--specFile <file>] [--help | -h]
 
         Required:
         --url <url>          The target URL to run the autospec tests against.
@@ -31,6 +31,8 @@ if (args.includes("--help") || args.includes("-h")) {
                                 * OPENAI_API_KEY
                                 * GOOGLE_GENERATIVE_AI_API_KEY
                                 * ANTHROPIC_API_KEY
+        --specFile <file>    Path to the file containing specs to run.
+                             Use "-" to read from stdin.
     `);
     process.exit(0);
 }
@@ -52,12 +54,14 @@ if (!apiKey) {
 
 const modelName = getArgValue("--model", "gpt-4o");
 const specLimit = getArgValue("--spec_limit", 10);
+const specFile = getArgValue("--specFile", null);
 
 main({
     testUrl,
     modelName,
     specLimit,
     apiKey,
+    specFile,
 })
     .then(console.log)
     .catch(console.error);
