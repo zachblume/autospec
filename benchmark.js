@@ -25,7 +25,7 @@ const runBenchmark = async () => {
     for (const example of examples) {
         console.log(`Running autospec on ${example.url}`);
         try {
-            await main({
+            const { testResults } = await main({
                 testUrl: example.url,
                 modelName: "gpt-4o",
                 specLimit: 1,
