@@ -88,23 +88,3 @@ if (!testUrl) {
         .catch(console.error);
 }
 
-const apiKey = getArgValue("--apikey", null);
-if (!apiKey) {
-    console.warn(
-        "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
-    );
-}
-
-const modelName = getArgValue("--model", "gpt-4o");
-const specLimit = getArgValue("--spec_limit", 10);
-const specFile = getArgValue("--specFile", null);
-
-main({
-    testUrl,
-    modelName,
-    specLimit,
-    apiKey,
-    specFile,
-})
-    .then(console.log)
-    .catch(console.error);
