@@ -797,7 +797,7 @@ export async function printTestResults({ runId, testResults, testUrl }) {
     fileContent += `  await page.goto('${testUrl}');\n`;
     fileContent += `});\n\n`;
 
-    successfulTests.forEach(({ spec, actions }, index) => {
+    successfulTests.forEach(({ spec, actions }) => {
         fileContent += `test("${spec}", async ({ page }) => {\n`;
         actions.forEach(({ action }) => {
             switch (action.action) {
