@@ -231,6 +231,7 @@ export async function main({
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
     apiKey = null,
+    specFile = null,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -301,13 +302,19 @@ export async function main({
     });
 
     try {
-        await visitPages({ page, runId, client, testUrl });
-        const { videoFrames } = await getVideoFrames({ runId });
-        const { testPlan } = await createTestPlan({
-            videoFrames,
-            model,
-            apiKey,
-        });
+        let testPlan;
+        if (specFile) {
+            testPlan = await loadSpecsFromFileOrStdin(specFile);
+        } else {
+            await visitPages({ page, runId, client, testUrl });
+            const { videoFrames } = await getVideoFrames({ runId });
+            const { testPlan: generatedTestPlan } = await createTestPlan({
+                videoFrames,
+                model,
+                apiKey,
+            });
+            testPlan = generatedTestPlan;
+        }
 
         // Cleanup the context, but leave the browser alive as a global
         await context.close();
@@ -825,4 +832,38 @@ export async function printTestResults({ runId, testResults, testUrl }) {
 
     fs.writeFileSync(testFilePath, fileContent, "utf-8");
     logger.info(`Successful tests written to ${testFilePath}`);
+}
+
+async function loadSpecsFromFileOrStdin(specFile) {
+    let specs;
+    if (specFile === "-") {
+        // Read from stdin
+        specs = await new Promise((resolve, reject) => {
+            let data = "";
+            process.stdin.on("data", (chunk) => {
+                data += chunk.toString();
+            });
+            process.stdin.on("end", () => {
+                resolve(data);
+            });
+            process.stdin.on("error", (err) => {
+                reject(err);
+            });
+        });
+    } else {
+        // Read from file
+        specs = fs.readFileSync(specFile, "utf8");
+    }
+
+    const parsedSpecs = JSON.parse(specs);
+    if (!Array.isArray(parsedSpecs)) {
+        throw new Error("Specs file content is not an array");
+    }
+    parsedSpecs.forEach((spec) => {
+        if (typeof spec !== "string") {
+            throw new Error("Spec in file is not a string");
+        }
+    });
+
+    return parsedSpecs;
 }
