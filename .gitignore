@@ -14,3 +14,5 @@ trajectories/*
 playwright-report
 test-results
 tests/successfulTests*
+.aider*
+Pipfile
