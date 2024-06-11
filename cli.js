@@ -3,7 +3,7 @@
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
 import readline from "readline";
-import inquirer from "inquirer";
+const inquirer = await import("inquirer");
 
 const args = process.argv.slice(2);
 
