@@ -15,13 +15,6 @@ const examples = [
     { url: 'https://example.com/test10', shouldPass: true },
 ];
 
-const introduceBug = (example) => {
-    // Introduce a bug by modifying the example URL or content
-    if (!example.shouldPass) {
-        return { ...example, url: example.url + '?bug=true' };
-    }
-    return example;
-};
 
 const runBenchmark = async () => {
     const results = [];
@@ -31,8 +24,7 @@ const runBenchmark = async () => {
     let expectedFailCount = 0;
 
     for (const example of examples) {
-        const testExample = introduceBug(example);
-        console.log(`Running autospec on ${testExample.url}`);
+        console.log(`Running autospec on ${example.url}`);
         try {
             await main({ testUrl: testExample.url });
             results.push({ testUrl: testExample.url, status: 'passed' });
