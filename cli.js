@@ -3,6 +3,7 @@
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
 import readline from "readline";
+import inquirer from "inquirer";
 
 const args = process.argv.slice(2);
 
@@ -52,13 +53,16 @@ const models = [
 ];
 
 const askModelChoice = async () => {
-    console.log("Choose a model:");
-    models.forEach((model, index) => {
-        console.log(`${index + 1}. ${model}`);
-    });
-    const choice = await askQuestion("Enter the number of the model to use (default: 1): ");
-    const modelIndex = parseInt(choice, 10) - 1;
-    return models[modelIndex] || models[0];
+    const { model } = await inquirer.prompt([
+        {
+            type: "list",
+            name: "model",
+            message: "Choose a model:",
+            choices: models,
+            default: models[0],
+        },
+    ]);
+    return model;
 };
 
 const getInteractiveInput = async () => {
