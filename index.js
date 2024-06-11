@@ -334,17 +334,14 @@ export async function main({
         await Promise.all(testPromises);
 
         logger.info("Test complete");
+        return { testResults };
     } catch (e) {
         logger.error("Test error", e);
         console.error(e);
+        return { testResults };
     } finally {
         await browser.close();
-        logger.info("Video recording should be complete.");
         await printTestResults({ runId, testResults, testUrl });
-
-        process.exit(
-            testResults.every((result) => result.status === "passed") ? 0 : 1,
-        );
     }
 }
 
@@ -357,7 +354,6 @@ export async function newCompletion({ messages, schema, model }) {
         maxTokens: 1000,
         seed: 0,
         schema,
-        defaultObjectGenerationMode: "default", // Add a default value for defaultObjectGenerationMode
     });
 
     logger.info(JSON.stringify(object, null, 4));

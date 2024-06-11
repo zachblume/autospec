@@ -63,5 +63,10 @@ main({
     apiKey,
     specFile,
 })
-    .then(console.log)
+    .then((output) => {
+        const { testResults } = output;
+        process.exit(
+            testResults.every((result) => result.status === "passed") ? 0 : 1,
+        );
+    })
     .catch(console.error);

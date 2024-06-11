@@ -29,81 +29,80 @@ const runBenchmark = async () => {
     let trueNegatives = 0;
     let falseNegatives = 0;
 
-    try {
-        for (const example of examples) {
-            console.log(`Running autospec on ${example.url}`);
-            try {
-                const { testResults } = await main({
-                    testUrl: example.url,
-                    modelName: "gpt-4o",
-                    specLimit: 1,
-                });
+    for (const example of examples) {
+        console.log(`Running autospec on ${example.url}`);
+        try {
+            const { testResults } = await main({
+                testUrl: example.url,
+                modelName: "gpt-4o",
+                specLimit: 1,
+            });
 
-                const allPassed = testResults.every(
-                    (result) => result.status === "passed",
-                );
+            const allPassed = testResults.every(
+                (result) => result.status === "passed",
+            );
 
-                if (allPassed) {
-                    results.push({ testUrl: example.url, status: "passed" });
-                    if (example.shouldPass) {
-                        truePositives++;
-                    } else {
-                        falsePositives++;
-                    }
+            if (allPassed) {
+                results.push({ testUrl: example.url, status: "passed" });
+                if (example.shouldPass) {
+                    truePositives++;
                 } else {
-                    results.push({ testUrl: example.url, status: "failed" });
-                    if (example.shouldPass) {
-                        falseNegatives++;
-                    } else {
-                        trueNegatives++;
-                    }
+                    falsePositives++;
                 }
-            } catch (error) {
-                console.error(`Error running autospec on ${example.url}:`, error);
-                results.push({
-                    testUrl: example.url,
-                    status: "error",
-                    error: error.message,
-                });
+            } else {
+                results.push({ testUrl: example.url, status: "failed" });
                 if (example.shouldPass) {
                     falseNegatives++;
                 } else {
                     trueNegatives++;
                 }
             }
+        } catch (error) {
+            console.error(`Error running autospec on ${example.url}:`, error);
+            results.push({
+                testUrl: example.url,
+                status: "error",
+                error: error.message,
+            });
+            if (example.shouldPass) {
+                falseNegatives++;
+            } else {
+                trueNegatives++;
+            }
         }
-
-        const precision = truePositives / (truePositives + falsePositives);
-        const recall = truePositives / (truePositives + falseNegatives);
-
-        const metrics = {
-            total: examples.length,
-            truePositives,
-            falsePositives,
-            trueNegatives,
-            falseNegatives,
-            precision,
-            recall,
-        };
-
-        const resultsDir = path.join(__dirname, "benchmark-results");
-        if (!fs.existsSync(resultsDir)) {
-            fs.mkdirSync(resultsDir);
-        }
-        const timestamp = new Date().toISOString().replace(/[^0-9]/g, "");
-        const resultsPath = path.join(resultsDir, `benchmark-results-${timestamp}.json`);
-        const metadata = {
-            commitSHA,
-            datetime,
-            results,
-            metrics,
-        };
-
-        fs.writeFileSync(resultsPath, JSON.stringify(metadata, null, 4));
-        console.log(`Benchmark results and metrics saved to ${resultsPath}`);
-    } catch (error) {
-        console.error("Error during benchmark run:", error);
     }
+
+    const precision = truePositives / (truePositives + falsePositives);
+    const recall = truePositives / (truePositives + falseNegatives);
+
+    const metrics = {
+        total: examples.length,
+        truePositives,
+        falsePositives,
+        trueNegatives,
+        falseNegatives,
+        precision,
+        recall,
+    };
+
+    const resultsDir = path.join(__dirname, "benchmark-results");
+    if (!fs.existsSync(resultsDir)) {
+        fs.mkdirSync(resultsDir);
+    }
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, "");
+    const resultsPath = path.join(
+        resultsDir,
+        `benchmark-results-${timestamp}.json`,
+    );
+    const metadata = {
+        commitSHA,
+        datetime,
+        results,
+        metrics,
+    };
+
+    fs.writeFileSync(resultsPath, JSON.stringify(metadata, null, 4));
+    console.log(`Benchmark results and metrics saved to ${resultsPath}`);
 };
 
 runBenchmark();
