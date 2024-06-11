@@ -2,6 +2,7 @@
 // CLI entry point for the autospec package.
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
+import readline from "readline";
 
 const args = process.argv.slice(2);
 
@@ -37,12 +38,54 @@ if (args.includes("--help") || args.includes("-h")) {
     process.exit(0);
 }
 
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+
+const askQuestion = (query) => new Promise((resolve) => rl.question(query, resolve));
+
+const getInteractiveInput = async () => {
+    const testUrl = await askQuestion("Enter the target URL: ");
+    const modelName = await askQuestion("Enter the model to use (default: gpt-4o): ") || "gpt-4o";
+    const specLimit = await askQuestion("Enter the spec limit (default: 10): ") || 10;
+    const apiKey = await askQuestion("Enter the API key: ");
+    const specFile = await askQuestion("Enter the spec file path (or leave blank): ") || null;
+
+    rl.close();
+
+    return { testUrl, modelName, specLimit, apiKey, specFile };
+};
+
 const testUrl = getArgValue("--url", null);
+let modelName = getArgValue("--model", "gpt-4o");
+let specLimit = getArgValue("--spec_limit", 10);
+let apiKey = getArgValue("--apikey", null);
+let specFile = getArgValue("--specFile", null);
+
 if (!testUrl) {
-    console.error(
-        "Error: The --url argument is required.\nUse --help or -h for info.",
-    );
-    process.exit(1);
+    console.warn("No URL provided. Entering interactive mode...");
+    getInteractiveInput().then((inputs) => {
+        main(inputs)
+            .then(console.log)
+            .catch(console.error);
+    });
+} else {
+    if (!apiKey) {
+        console.warn(
+            "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
+        );
+    }
+
+    main({
+        testUrl,
+        modelName,
+        specLimit,
+        apiKey,
+        specFile,
+    })
+        .then(console.log)
+        .catch(console.error);
 }
 
 const apiKey = getArgValue("--apikey", null);
