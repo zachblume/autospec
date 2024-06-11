@@ -1,6 +1,10 @@
 import { main } from "./index.js";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const examples = [
     { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
@@ -22,68 +26,72 @@ const runBenchmark = async () => {
     let trueNegatives = 0;
     let falseNegatives = 0;
 
-    for (const example of examples) {
-        console.log(`Running autospec on ${example.url}`);
-        try {
-            const { testResults } = await main({
-                testUrl: example.url,
-                modelName: "gpt-4o",
-                specLimit: 1,
-            });
+    try {
+        for (const example of examples) {
+            console.log(`Running autospec on ${example.url}`);
+            try {
+                const { testResults } = await main({
+                    testUrl: example.url,
+                    modelName: "gpt-4o",
+                    specLimit: 1,
+                });
 
-            const allPassed = testResults.every(
-                (result) => result.status === "passed",
-            );
+                const allPassed = testResults.every(
+                    (result) => result.status === "passed",
+                );
 
-            if (allPassed) {
-                results.push({ testUrl: example.url, status: "passed" });
-                if (example.shouldPass) {
-                    truePositives++;
+                if (allPassed) {
+                    results.push({ testUrl: example.url, status: "passed" });
+                    if (example.shouldPass) {
+                        truePositives++;
+                    } else {
+                        falsePositives++;
+                    }
                 } else {
-                    falsePositives++;
+                    results.push({ testUrl: example.url, status: "failed" });
+                    if (example.shouldPass) {
+                        falseNegatives++;
+                    } else {
+                        trueNegatives++;
+                    }
                 }
-            } else {
-                results.push({ testUrl: example.url, status: "failed" });
+            } catch (error) {
+                console.error(`Error running autospec on ${example.url}:`, error);
+                results.push({
+                    testUrl: example.url,
+                    status: "error",
+                    error: error.message,
+                });
                 if (example.shouldPass) {
                     falseNegatives++;
                 } else {
                     trueNegatives++;
                 }
             }
-        } catch (error) {
-            console.error(`Error running autospec on ${example.url}:`, error);
-            results.push({
-                testUrl: example.url,
-                status: "error",
-                error: error.message,
-            });
-            if (example.shouldPass) {
-                falseNegatives++;
-            } else {
-                trueNegatives++;
-            }
         }
+
+        const precision = truePositives / (truePositives + falsePositives);
+        const recall = truePositives / (truePositives + falseNegatives);
+
+        const metrics = {
+            total: examples.length,
+            truePositives,
+            falsePositives,
+            trueNegatives,
+            falseNegatives,
+            precision,
+            recall,
+        };
+
+        const resultsPath = path.join(__dirname, "benchmark-results.json");
+        fs.writeFileSync(
+            resultsPath,
+            JSON.stringify({ results, metrics }, null, 4),
+        );
+        console.log(`Benchmark results and metrics saved to ${resultsPath}`);
+    } catch (error) {
+        console.error("Error during benchmark run:", error);
     }
-
-    const precision = truePositives / (truePositives + falsePositives);
-    const recall = truePositives / (truePositives + falseNegatives);
-
-    const metrics = {
-        total: examples.length,
-        truePositives,
-        falsePositives,
-        trueNegatives,
-        falseNegatives,
-        precision,
-        recall,
-    };
-
-    const resultsPath = path.join(__dirname, "benchmark-results.json");
-    fs.writeFileSync(
-        resultsPath,
-        JSON.stringify({ results, metrics }, null, 4),
-    );
-    console.log(`Benchmark results and metrics saved to ${resultsPath}`);
 };
 
 runBenchmark();
