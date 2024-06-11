@@ -34,7 +34,7 @@ const runBenchmark = async () => {
                 falsePositives++;
             }
         } catch (error) {
-            results.push({ testUrl: testExample.url, status: 'failed', error: error.message });
+            results.push({ testUrl: example.url, status: 'failed', error: error.message });
             if (example.shouldPass) {
                 falseNegatives++;
             } else {
