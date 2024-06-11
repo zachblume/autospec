@@ -28,12 +28,15 @@ used to execute the test environment.
 When the run completes, you'll see a summary of the tests that were run and
 whether they passed or failed.
 
-The successful specs will be saved within a `tests` folder in your working
-directory. You can re-execute these tests at any time by running:
+The successful specs will be saved within the `trajectories` folder in your
+working directory. You can re-execute these tests at any time by running:
 
 ```
 npx playwright test
 ```
+
+Depending on your existing Playwright setup, you may need to add "trajectories"
+to the testDir in your playwright.config.js file.
 
 ### Using environment variables instead of passing keys as a flag
 
