@@ -85,11 +85,12 @@ let specFile = getArgValue("--specFile", null);
 
 if (!testUrl) {
     console.warn("No URL provided. Entering interactive mode...");
-    getInteractiveInput().then((inputs) => {
-        main(inputs)
+    (async () => {
+        const inputs = await getInteractiveInput();
+        await main(inputs)
             .then(console.log)
             .catch(console.error);
-    });
+    })();
 } else {
     if (!apiKey) {
         console.warn(
