@@ -114,7 +114,7 @@ autospec is open-source and we welcome contributors! Please open an
 
 ### Contributors
 
-<img src="https://contrib.rocks/image?repo=zachblume/autospec" />
+<a href="https://github.com/zachblume/autospec/graphs/contributors"><img src="https://contrib.rocks/image?repo=zachblume/autospec" /></a>
 
 ### License
 
