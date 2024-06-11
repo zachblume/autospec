@@ -357,6 +357,7 @@ export async function newCompletion({ messages, schema, model }) {
         maxTokens: 1000,
         seed: 0,
         schema,
+        defaultObjectGenerationMode: "default", // Add a default value for defaultObjectGenerationMode
     });
 
     logger.info(JSON.stringify(object, null, 4));
