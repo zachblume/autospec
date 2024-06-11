@@ -26,8 +26,8 @@ const runBenchmark = async () => {
     for (const example of examples) {
         console.log(`Running autospec on ${example.url}`);
         try {
-            await main({ testUrl: testExample.url });
-            results.push({ testUrl: testExample.url, status: 'passed' });
+            await main({ testUrl: example.url });
+            results.push({ testUrl: example.url, status: 'passed' });
             if (example.shouldPass) {
                 truePositives++;
             } else {
