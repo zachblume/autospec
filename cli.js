@@ -45,9 +45,25 @@ const rl = readline.createInterface({
 
 const askQuestion = (query) => new Promise((resolve) => rl.question(query, resolve));
 
+const models = [
+    "gpt-4o",
+    "gemini-1.5-flash-latest",
+    "claude-3-haiku"
+];
+
+const askModelChoice = async () => {
+    console.log("Choose a model:");
+    models.forEach((model, index) => {
+        console.log(`${index + 1}. ${model}`);
+    });
+    const choice = await askQuestion("Enter the number of the model to use (default: 1): ");
+    const modelIndex = parseInt(choice, 10) - 1;
+    return models[modelIndex] || models[0];
+};
+
 const getInteractiveInput = async () => {
     const testUrl = await askQuestion("Enter the target URL: ");
-    const modelName = await askQuestion("Enter the model to use (default: gpt-4o): ") || "gpt-4o";
+    const modelName = await askModelChoice();
     const specLimit = await askQuestion("Enter the spec limit (default: 10): ") || 10;
     const apiKey = await askQuestion("Enter the API key: ");
     const specFile = await askQuestion("Enter the spec file path (or leave blank): ") || null;
