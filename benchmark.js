@@ -18,43 +18,44 @@ const examples = [
 
 const runBenchmark = async () => {
     const results = [];
-    let passedCount = 0;
-    let failedCount = 0;
-    let expectedPassCount = 0;
-    let expectedFailCount = 0;
+    let truePositives = 0;
+    let falsePositives = 0;
+    let trueNegatives = 0;
+    let falseNegatives = 0;
 
     for (const example of examples) {
         console.log(`Running autospec on ${example.url}`);
         try {
             await main({ testUrl: testExample.url });
             results.push({ testUrl: testExample.url, status: 'passed' });
-            if (testExample.shouldPass) {
-                passedCount++;
+            if (example.shouldPass) {
+                truePositives++;
             } else {
-                failedCount++;
+                falsePositives++;
             }
         } catch (error) {
             results.push({ testUrl: testExample.url, status: 'failed', error: error.message });
-            if (testExample.shouldPass) {
-                failedCount++;
+            if (example.shouldPass) {
+                falseNegatives++;
             } else {
-                passedCount++;
+                trueNegatives++;
             }
         }
 
-        if (testExample.shouldPass) {
-            expectedPassCount++;
-        } else {
-            expectedFailCount++;
-        }
+        // No need to track expected counts separately
     }
+
+    const precision = truePositives / (truePositives + falsePositives);
+    const recall = truePositives / (truePositives + falseNegatives);
 
     const metrics = {
         total: examples.length,
-        passed: passedCount,
-        failed: failedCount,
-        expectedPass: expectedPassCount,
-        expectedFail: expectedFailCount,
+        truePositives,
+        falsePositives,
+        trueNegatives,
+        falseNegatives,
+        precision,
+        recall,
     };
 
     const resultsPath = path.join(__dirname, 'benchmark-results.json');
