@@ -2,6 +2,7 @@ import { main } from "./index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,8 @@ const examples = [
 
 const runBenchmark = async () => {
     const results = [];
+    const commitSHA = execSync("git rev-parse HEAD").toString().trim();
+    const datetime = new Date().toISOString();
     let truePositives = 0;
     let falsePositives = 0;
     let trueNegatives = 0;
@@ -83,11 +86,19 @@ const runBenchmark = async () => {
             recall,
         };
 
-        const resultsPath = path.join(__dirname, "benchmark-results.json");
-        fs.writeFileSync(
-            resultsPath,
-            JSON.stringify({ results, metrics }, null, 4),
-        );
+        const resultsDir = path.join(__dirname, "benchmark-results");
+        if (!fs.existsSync(resultsDir)) {
+            fs.mkdirSync(resultsDir);
+        }
+        const resultsPath = path.join(resultsDir, "benchmark-results.json");
+        const metadata = {
+            commitSHA,
+            datetime,
+            results,
+            metrics,
+        };
+
+        fs.writeFileSync(resultsPath, JSON.stringify(metadata, null, 4));
         console.log(`Benchmark results and metrics saved to ${resultsPath}`);
     } catch (error) {
         console.error("Error during benchmark run:", error);
