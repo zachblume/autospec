@@ -24,32 +24,29 @@ const runBenchmark = async () => {
 
     for (const example of examples) {
         console.log(`Running autospec on ${example.url}`);
-        try {
-            const { testResults } = await main({
-                testUrl: example.url,
-                modelName: "gpt-4o",
-                specLimit: 1,
-            });
+        const { testResults } = await main({
+            testUrl: example.url,
+            modelName: "gpt-4o",
+            specLimit: 1,
+        });
+
+        const allPassed = testResults.every((result) => result.status === "passed");
+
+        if (allPassed) {
             results.push({ testUrl: example.url, status: "passed" });
             if (example.shouldPass) {
                 truePositives++;
             } else {
                 falsePositives++;
             }
-        } catch (error) {
-            results.push({
-                testUrl: example.url,
-                status: "failed",
-                error: error.message,
-            });
+        } else {
+            results.push({ testUrl: example.url, status: "failed" });
             if (example.shouldPass) {
                 falseNegatives++;
             } else {
                 trueNegatives++;
             }
         }
-
-        // No need to track expected counts separately
     }
 
     const precision = truePositives / (truePositives + falsePositives);
