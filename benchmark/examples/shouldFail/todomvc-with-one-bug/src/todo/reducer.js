@@ -66,7 +66,7 @@ export const todoReducer = (state, action) => {
                     : todo,
             );
         case REMOVE_ITEM:
-            return state.filter((todo) => todo.id !== action.payload.id);
+            return state.filter((todo) => true); // This bug simply fails to delete items
         case TOGGLE_ITEM:
             return state.map((todo) =>
                 todo.id === action.payload.id
