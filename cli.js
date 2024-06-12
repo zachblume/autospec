@@ -81,43 +81,35 @@ const getInteractiveInput = async () => {
     };
 };
 
-const testUrl = getArgValue("--url", null);
-let modelName = getArgValue("--model", "gpt-4o");
-let specLimit = getArgValue("--spec_limit", 10);
-let apiKey = getArgValue("--apikey", null);
-let specFile = getArgValue("--specFile", null);
+const getVars = async () => {
+    if (!getArgValue("--url", null)) {
+        console.warn("No URL provided. Entering interactive mode...");
+        return await getInteractiveInput().catch(console.error);
+    } else {
+        return {
+            testUrl: getArgValue("--url", null),
+            modelName: getArgValue("--model", "gpt-4o"),
+            specLimit: getArgValue("--spec_limit", 10),
+            apiKey: getArgValue("--apikey", null),
+            specFile: getArgValue("--specFile", null),
+        };
+    }
+};
 
-if (!testUrl) {
-    console.warn("No URL provided. Entering interactive mode...");
-    getInteractiveInput()
-        .then((inputs) => {
-            testUrl = inputs.testUrl;
-            modelName = inputs.modelName;
-            specLimit = inputs.specLimit;
-            apiKey = inputs.apiKey;
-            specFile = inputs.specFile;
-        })
-        .catch(console.error)
-        .finally(async () => {
-            if (!apiKey) {
-                console.warn(
-                    "Warning: No API key provided. Falling back to environment variables.",
-                );
-            }
-        });
-}
+const run = async () => {
+    const { testUrl, modelName, specLimit, apiKey, specFile } = await getVars();
+    if (!apiKey) {
+        console.warn(
+            "Warning: No API key provided. Falling back to environment variables.",
+        );
+    }
+    await main({
+        testUrl,
+        modelName,
+        specLimit,
+        apiKey,
+        specFile,
+    });
+};
 
-if (!apiKey) {
-    console.warn(
-        "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
-    );
-}
-main({
-    testUrl,
-    modelName,
-    specLimit,
-    apiKey,
-    specFile,
-})
-    .then(console.log)
-    .catch(console.error);
+run().catch(console.error);
