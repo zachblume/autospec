@@ -87,7 +87,6 @@ if (!testUrl) {
     console.warn("No URL provided. Entering interactive mode...");
     getInteractiveInput()
         .then((inputs) => {
-            console.log(1);
             main(inputs).then(console.log).catch(console.error);
         })
         .catch(console.error);
@@ -97,14 +96,14 @@ if (!testUrl) {
             "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
         );
     }
-
-    main({
-        testUrl,
-        modelName,
-        specLimit,
-        apiKey,
-        specFile,
-    })
-        .then(console.log)
-        .catch(console.error);
 }
+
+main({
+    testUrl,
+    modelName,
+    specLimit,
+    apiKey,
+    specFile,
+})
+    .then(console.log)
+    .catch(console.error);
