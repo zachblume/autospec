@@ -7,7 +7,7 @@ import { execSync } from "child_process";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const examples = [
+const fullCycleExamples = [
     { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
     { url: "https://demo.realworld.io/", shouldPass: true },
     { url: "https://astexplorer.net/", shouldPass: true },
@@ -21,6 +21,19 @@ const examples = [
     },
 ];
 
+const specExamples = [
+    {
+        url: "https://todomvc.com/examples/react/dist/",
+        shouldPass: true,
+        specToTest: "The user should be able to add todos",
+    },
+    {
+        url: "https://todomvc-with-one-bug.vercel.app",
+        shouldPass: false,
+        specToTest: "The user should be able to delete todos",
+    },
+];
+
 const runBenchmark = async () => {
     const results = [];
     const commitSHA = execSync("git rev-parse HEAD").toString().trim();
@@ -30,13 +43,14 @@ const runBenchmark = async () => {
     let trueNegatives = 0;
     let falseNegatives = 0;
 
-    for (const example of examples) {
+    for (const example of fullCycleExamples) {
         console.log(`Running autospec on ${example.url}`);
         try {
             const { testResults } = await main({
                 testUrl: example.url,
                 modelName: "gpt-4o",
-                specLimit: 1,
+                specLimit: example.specLimit ?? 1,
+                specFile: example.specFile,
             });
 
             const allPassed = testResults.every(
@@ -71,6 +85,11 @@ const runBenchmark = async () => {
                 trueNegatives++;
             }
         }
+    }
+
+    // Test individual specs
+    for (const example of specExamples) {
+        // Finish this code
     }
 
     const precision = truePositives / (truePositives + falsePositives);
