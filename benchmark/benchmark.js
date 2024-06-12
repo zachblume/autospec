@@ -1,4 +1,4 @@
-import { main } from "../index.js";
+import { main } from "../src/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
