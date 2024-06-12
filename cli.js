@@ -44,13 +44,10 @@ const rl = readline.createInterface({
     output: process.stdout,
 });
 
-const askQuestion = (query) => new Promise((resolve) => rl.question(query, resolve));
+const askQuestion = (query) =>
+    new Promise((resolve) => rl.question(query, resolve));
 
-const models = [
-    "gpt-4o",
-    "gemini-1.5-flash-latest",
-    "claude-3-haiku"
-];
+const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
 
 const askModelChoice = async () => {
     const { model } = await inquirer.prompt([
@@ -68,9 +65,12 @@ const askModelChoice = async () => {
 const getInteractiveInput = async () => {
     const testUrl = await askQuestion("Enter the target URL: ");
     const modelName = await askModelChoice();
-    const specLimit = await askQuestion("Enter the spec limit (default: 10): ") || 10;
+    const specLimit =
+        (await askQuestion("Enter the spec limit (default: 10): ")) || 10;
     const apiKey = await askQuestion("Enter the API key: ");
-    const specFile = await askQuestion("Enter the spec file path (or leave blank): ") || null;
+    const specFile =
+        (await askQuestion("Enter the spec file path (or leave blank): ")) ||
+        null;
 
     rl.close();
 
@@ -85,11 +85,12 @@ let specFile = getArgValue("--specFile", null);
 
 if (!testUrl) {
     console.warn("No URL provided. Entering interactive mode...");
-    getInteractiveInput().then((inputs) => {
-        main(inputs)
-            .then(console.log)
-            .catch(console.error);
-    });
+    getInteractiveInput()
+        .then((inputs) => {
+            console.log(1);
+            main(inputs).then(console.log).catch(console.error);
+        })
+        .catch(console.error);
 } else {
     if (!apiKey) {
         console.warn(
@@ -107,4 +108,3 @@ if (!testUrl) {
         .then(console.log)
         .catch(console.error);
 }
-
