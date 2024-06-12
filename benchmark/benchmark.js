@@ -34,6 +34,8 @@ const specExamples = [
     },
 ];
 
+const combinedExamples = [...fullCycleExamples, ...specExamples];
+
 const runBenchmark = async () => {
     const results = [];
     const commitSHA = execSync("git rev-parse HEAD").toString().trim();
@@ -43,14 +45,14 @@ const runBenchmark = async () => {
     let trueNegatives = 0;
     let falseNegatives = 0;
 
-    for (const example of fullCycleExamples) {
+    for (const example of combinedExamples) {
         console.log(`Running autospec on ${example.url}`);
         try {
             const { testResults } = await main({
                 testUrl: example.url,
                 modelName: "gpt-4o",
                 specLimit: example.specLimit ?? 1,
-                specFile: example.specFile,
+                specificSpecToTest: example.specToTest,
             });
 
             const allPassed = testResults.every(
@@ -85,11 +87,6 @@ const runBenchmark = async () => {
                 trueNegatives++;
             }
         }
-    }
-
-    // Test individual specs
-    for (const example of specExamples) {
-        // Finish this code
     }
 
     const precision = truePositives / (truePositives + falsePositives);

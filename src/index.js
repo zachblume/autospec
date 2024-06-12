@@ -232,6 +232,7 @@ export async function main({
         : 10,
     apiKey = null,
     specFile = null,
+    specificSpecToTest = null,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -303,7 +304,9 @@ export async function main({
 
     try {
         let testPlan;
-        if (specFile) {
+        if (specificSpecToTest) {
+            testPlan = [specificSpecToTest];
+        } else if (specFile) {
             testPlan = await loadSpecsFromFileOrStdin(specFile);
         } else {
             await visitPages({ page, runId, client, testUrl });
