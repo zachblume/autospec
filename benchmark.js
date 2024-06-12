@@ -101,7 +101,9 @@ const runBenchmark = async () => {
         metrics,
     };
 
-    fs.writeFileSync(resultsPath, JSON.stringify(metadata, null, 4));
+    const jsonString = JSON.stringify(metadata, null, 4);
+    fs.writeFileSync(resultsPath, jsonString);
+    console.log(jsonString);
     console.log(`Benchmark results and metrics saved to ${resultsPath}`);
 };
 
