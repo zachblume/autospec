@@ -8,3 +8,6 @@ realworld:
 
 todomvc:
 	npx autospecai --url "https://todomvc.com/examples/react/dist/" --model gemini-1.5-flash-latest
+
+bench:
+	node 'benchmark/benchmark.js'
