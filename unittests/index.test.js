@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-const { newCompletion } = require("../index");
+const { newCompletion } = require("../src/index");
 
 jest.mock("@ai-sdk/openai", () => ({
     createOpenAI: jest.fn(() => ({})),

@@ -1,0 +1,19 @@
+{
+    "commitSHA": "0141eb802fbc2d737b52d36ef7c3321f3e456170",
+    "datetime": "2024-06-11T21:51:02.887Z",
+    "results": [
+        {
+            "testUrl": "https://todomvc.com/examples/react/dist/",
+            "status": "passed"
+        }
+    ],
+    "metrics": {
+        "total": 1,
+        "truePositives": 1,
+        "falsePositives": 0,
+        "trueNegatives": 0,
+        "falseNegatives": 0,
+        "precision": 1,
+        "recall": 1
+    }
+}

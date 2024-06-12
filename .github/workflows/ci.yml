@@ -26,11 +26,11 @@ jobs:
             - name: Install dependencies
               run: >
                   npm install
-                  npx playwright install
-                  chmod +x ./tests/shouldPass.sh
-                  chmod +x ./tests/shouldFail.sh
 
-            - name: Run Autospec Tests
+            - name: Run Unit Tests
+              run: npm run test
+
+            - name: Run Autospec Benchmark
               env:
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-              run: ./tests/shouldPass.sh
+              run: node benchmark/benchmark.js

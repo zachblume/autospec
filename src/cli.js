@@ -103,13 +103,16 @@ const run = async () => {
             "Warning: No API key provided. Falling back to environment variables.",
         );
     }
-    await main({
+    const { testResults } = await main({
         testUrl,
         modelName,
         specLimit,
         apiKey,
         specFile,
     });
+    process.exit(
+        testResults.every((result) => result.status === "passed") ? 0 : 1,
+    );
 };
 
 run().catch(console.error);

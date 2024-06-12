@@ -334,17 +334,14 @@ export async function main({
         await Promise.all(testPromises);
 
         logger.info("Test complete");
+        return { testResults };
     } catch (e) {
         logger.error("Test error", e);
         console.error(e);
+        return { testResults };
     } finally {
         await browser.close();
-        logger.info("Video recording should be complete.");
         await printTestResults({ runId, testResults, testUrl });
-
-        process.exit(
-            testResults.every((result) => result.status === "passed") ? 0 : 1,
-        );
     }
 }
 

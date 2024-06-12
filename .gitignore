@@ -16,3 +16,5 @@ test-results
 tests/successfulTests*
 .aider*
 Pipfile
+
+dist
