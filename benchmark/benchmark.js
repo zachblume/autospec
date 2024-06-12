@@ -93,7 +93,7 @@ const runBenchmark = async () => {
     const recall = truePositives / (truePositives + falseNegatives);
 
     const metrics = {
-        total: examples.length,
+        total: results.length,
         truePositives,
         falsePositives,
         trueNegatives,
