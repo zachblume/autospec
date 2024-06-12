@@ -39,42 +39,46 @@ if (args.includes("--help") || args.includes("-h")) {
     process.exit(0);
 }
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
-
-const askQuestion = (query) =>
-    new Promise((resolve) => rl.question(query, resolve));
-
-const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
-
-const askModelChoice = async () => {
-    const { model } = await inquirer.prompt([
+const getInteractiveInput = async () => {
+    const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
+    const answers = await inquirer.prompt([
+        {
+            type: "input",
+            name: "testUrl",
+            message: "Enter the target URL: ",
+        },
         {
             type: "list",
-            name: "model",
+            name: "modelName",
             message: "Choose a model:",
             choices: models,
             default: models[0],
         },
+        {
+            type: "input",
+            name: "specLimit",
+            message: "Enter the spec limit (default: 10): ",
+            default: "10",
+        },
+        {
+            type: "input",
+            name: "apiKey",
+            message: "Enter the API key: ",
+        },
+        {
+            type: "input",
+            name: "specFile",
+            message: "Enter the spec file path (or leave blank): ",
+        },
     ]);
-    return model;
-};
 
-const getInteractiveInput = async () => {
-    const testUrl = await askQuestion("Enter the target URL: ");
-    const modelName = await askModelChoice();
-    const specLimit =
-        (await askQuestion("Enter the spec limit (default: 10): ")) || 10;
-    const apiKey = await askQuestion("Enter the API key: ");
-    const specFile =
-        (await askQuestion("Enter the spec file path (or leave blank): ")) ||
-        null;
-
-    rl.close();
-
-    return { testUrl, modelName, specLimit, apiKey, specFile };
+    return {
+        testUrl: answers.testUrl,
+        modelName: answers.modelName,
+        specLimit: parseInt(answers.specLimit, 10) || 10,
+        apiKey: answers.apiKey,
+        specFile: answers.specFile || null,
+    };
 };
 
 const testUrl = getArgValue("--url", null);
