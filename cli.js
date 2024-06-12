@@ -2,6 +2,8 @@
 // CLI entry point for the autospec package.
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
+import readline from "readline";
+import inquirer from "inquirer";
 
 const args = process.argv.slice(2);
 
@@ -37,36 +39,80 @@ if (args.includes("--help") || args.includes("-h")) {
     process.exit(0);
 }
 
-const testUrl = getArgValue("--url", null);
-if (!testUrl) {
-    console.error(
-        "Error: The --url argument is required.\nUse --help or -h for info.",
-    );
-    process.exit(1);
-}
+const getInteractiveInput = async () => {
+    const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
+    const answers = await inquirer.prompt([
+        {
+            type: "input",
+            name: "testUrl",
+            message: "Enter the target URL: ",
+        },
+        {
+            type: "list",
+            name: "modelName",
+            message: "Choose a model:",
+            choices: models,
+            default: models[0],
+        },
+        {
+            type: "input",
+            name: "specLimit",
+            message: "Enter the spec limit (default: 10): ",
+            default: "10",
+        },
+        {
+            type: "input",
+            name: "apiKey",
+            message: "Enter the API key: ",
+        },
+        {
+            type: "input",
+            name: "specFile",
+            message: "Enter the spec file path (or leave blank): ",
+        },
+    ]);
 
-const apiKey = getArgValue("--apikey", null);
-if (!apiKey) {
-    console.warn(
-        "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
-    );
-}
+    return {
+        testUrl: answers.testUrl,
+        modelName: answers.modelName,
+        specLimit: parseInt(answers.specLimit, 10) || 10,
+        apiKey: answers.apiKey,
+        specFile: answers.specFile || null,
+    };
+};
 
-const modelName = getArgValue("--model", "gpt-4o");
-const specLimit = getArgValue("--spec_limit", 10);
-const specFile = getArgValue("--specFile", null);
+const getVars = async () => {
+    if (!getArgValue("--url", null)) {
+        console.warn("No URL provided. Entering interactive mode...");
+        return await getInteractiveInput().catch(console.error);
+    } else {
+        return {
+            testUrl: getArgValue("--url", null),
+            modelName: getArgValue("--model", "gpt-4o"),
+            specLimit: getArgValue("--spec_limit", 10),
+            apiKey: getArgValue("--apikey", null),
+            specFile: getArgValue("--specFile", null),
+        };
+    }
+};
 
-main({
-    testUrl,
-    modelName,
-    specLimit,
-    apiKey,
-    specFile,
-})
-    .then((output) => {
-        const { testResults } = output;
-        process.exit(
-            testResults.every((result) => result.status === "passed") ? 0 : 1,
+const run = async () => {
+    const { testUrl, modelName, specLimit, apiKey, specFile } = await getVars();
+    if (!apiKey) {
+        console.warn(
+            "Warning: No API key provided. Falling back to environment variables.",
         );
-    })
-    .catch(console.error);
+    }
+    const { testResults } = await main({
+        testUrl,
+        modelName,
+        specLimit,
+        apiKey,
+        specFile,
+    });
+    process.exit(
+        testResults.every((result) => result.status === "passed") ? 0 : 1,
+    );
+};
+
+run().catch(console.error);
