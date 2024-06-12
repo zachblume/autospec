@@ -1,4 +1,4 @@
-import { main } from "./index.js";
+import { main } from "../index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,15 +9,16 @@ const __dirname = path.dirname(__filename);
 
 const examples = [
     { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
-    // { url: 'https://example.com/test2', shouldPass: true },
-    // { url: 'https://example.com/test3', shouldPass: true },
-    // { url: 'https://example.com/test4', shouldPass: true },
-    // { url: 'https://example.com/test5', shouldPass: false },
-    // { url: 'https://example.com/test6', shouldPass: true },
-    // { url: 'https://example.com/test7', shouldPass: false },
-    // { url: 'https://example.com/test8', shouldPass: true },
-    // { url: 'https://example.com/test9', shouldPass: true },
-    // { url: 'https://example.com/test10', shouldPass: true },
+    { url: "https://demo.realworld.io/", shouldPass: true },
+    { url: "https://astexplorer.net/", shouldPass: true },
+    { url: "https://excalidraw.com/", shouldPass: true },
+    { url: "https://vscode.dev/", shouldPass: true },
+
+    {
+        url: "https://todomvc-with-one-bug.vercel.app",
+        shouldPass: false,
+        humanNote: "The delete button on todos is broken",
+    },
 ];
 
 const runBenchmark = async () => {
