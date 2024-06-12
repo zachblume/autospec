@@ -91,10 +91,9 @@ if (!testUrl) {
     console.warn("No URL provided. Entering interactive mode...");
     getInteractiveInput()
         .then((inputs) => {
-            console.log(1);
             main(inputs).then(console.log).catch(console.error);
         })
-        .catch(() => console.log(2));
+        .catch(console.error);
 } else {
     if (!apiKey) {
         console.warn(
