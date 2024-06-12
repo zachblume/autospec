@@ -91,16 +91,35 @@ if (!testUrl) {
     console.warn("No URL provided. Entering interactive mode...");
     getInteractiveInput()
         .then((inputs) => {
-            main(inputs).then(console.log).catch(console.error);
+            testUrl = inputs.testUrl;
+            modelName = inputs.modelName;
+            specLimit = inputs.specLimit;
+            apiKey = inputs.apiKey;
+            specFile = inputs.specFile;
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(async () => {
+            if (!apiKey) {
+                console.warn(
+                    "Warning: No API key provided. Falling back to environment variables.",
+                );
+            }
+            await main({
+                testUrl,
+                modelName,
+                specLimit,
+                apiKey,
+                specFile,
+            })
+                .then(console.log)
+                .catch(console.error);
+        });
 } else {
     if (!apiKey) {
         console.warn(
             "Warning: No API key provided via CLI flag --apikey. Falling back to environment variables.",
         );
     }
-
     main({
         testUrl,
         modelName,
