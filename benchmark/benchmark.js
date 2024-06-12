@@ -7,7 +7,7 @@ import { execSync } from "child_process";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const examples = [
+const fullCycleExamples = [
     { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
     { url: "https://demo.realworld.io/", shouldPass: true },
     { url: "https://astexplorer.net/", shouldPass: true },
@@ -21,6 +21,21 @@ const examples = [
     },
 ];
 
+const specExamples = [
+    {
+        url: "https://todomvc.com/examples/react/dist/",
+        shouldPass: true,
+        specToTest: "The user should be able to add todos",
+    },
+    {
+        url: "https://todomvc-with-one-bug.vercel.app",
+        shouldPass: false,
+        specToTest: "The user should be able to delete todos",
+    },
+];
+
+const combinedExamples = [...fullCycleExamples, ...specExamples];
+
 const runBenchmark = async () => {
     const results = [];
     const commitSHA = execSync("git rev-parse HEAD").toString().trim();
@@ -30,13 +45,14 @@ const runBenchmark = async () => {
     let trueNegatives = 0;
     let falseNegatives = 0;
 
-    for (const example of examples) {
+    for (const example of combinedExamples) {
         console.log(`Running autospec on ${example.url}`);
         try {
             const { testResults } = await main({
                 testUrl: example.url,
                 modelName: "gpt-4o",
-                specLimit: 1,
+                specLimit: example.specLimit ?? 1,
+                specificSpecToTest: example.specToTest,
             });
 
             const allPassed = testResults.every(
@@ -65,11 +81,10 @@ const runBenchmark = async () => {
                 status: "error",
                 error: error.message,
             });
-            if (example.shouldPass) {
-                falseNegatives++;
-            } else {
-                trueNegatives++;
-            }
+
+            // If the test is unable to execute, let's classify it as a false
+            // negative since we can't be sure if it would have passed or failed
+            falseNegatives++;
         }
     }
 
@@ -77,13 +92,16 @@ const runBenchmark = async () => {
     const recall = truePositives / (truePositives + falseNegatives);
 
     const metrics = {
-        total: examples.length,
+        total: results.length,
         truePositives,
         falsePositives,
         trueNegatives,
         falseNegatives,
         precision,
         recall,
+        sensitivity: recall,
+        specificity: trueNegatives / (trueNegatives + falsePositives),
+        f1: (2 * precision * recall) / (precision + recall),
     };
 
     const resultsDir = path.join(__dirname, "benchmark-results");
