@@ -60,7 +60,12 @@ const runBenchmark = async () => {
             );
 
             if (allPassed) {
-                results.push({ testUrl: example.url, status: "passed" });
+                results.push({
+                    testUrl: example.url,
+                    status: "passed",
+                    totalInputTokens,
+                    totalOutputTokens,
+                });
                 if (example.shouldPass) {
                     truePositives++;
                 } else {
@@ -90,6 +95,14 @@ const runBenchmark = async () => {
 
     const precision = truePositives / (truePositives + falsePositives);
     const recall = truePositives / (truePositives + falseNegatives);
+    const totalInputTokens = results.reduce(
+        (sum, result) => sum + (result.totalInputTokens || 0),
+        0,
+    );
+    const totalOutputTokens = results.reduce(
+        (sum, result) => sum + (result.totalOutputTokens || 0),
+        0,
+    );
 
     const metrics = {
         total: results.length,
@@ -104,6 +117,10 @@ const runBenchmark = async () => {
         f1: (2 * precision * recall) / (precision + recall),
         totalInputTokens,
         totalOutputTokens,
+        // Approximate cost at gpt-4o pricing of $5.00 / 1M input tokens and
+        // $15.00 / 1M output tokens:
+        costInDollars:
+            (totalInputTokens / 1e6) * 5 + (totalOutputTokens / 1e6) * 15,
     };
 
     const resultsDir = path.join(__dirname, "benchmark-results");
