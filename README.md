@@ -2,7 +2,9 @@
 
 ### Open source end-to-end (e2e) test generation for web apps
 
-autospec is an end-to-end test/QA agent, using vision and text language models
+[Code Entrypoint](https://github.com/zachblume/autospec/blob/main/src/index.js) | [Discord](https://discord.gg/rZjT7j6T)
+
+Autospec is an end-to-end test/QA agent, using vision and text language models
 to explore and generate commonsense test specifications for web applications.
 It aims to mimic user-like judgement on the entire UI output after each
 interaction to decide whether to raise an error about how an application
@@ -110,7 +112,7 @@ autospec passed for https://todomvc.com/examples/react/dist/
 
 autospec is open-source and we welcome contributors! Please open an
 [issue](https://github.com/zachblume/autospec/issues) or
-[pull request](https://github.com/zachblume/autospec/pulls) to get started.
+[pull request](https://github.com/zachblume/autospec/pulls) to get started, and consider joining our [discord](https://discord.gg/rZjT7j6T) chat.
 
 ### Contributors
 
