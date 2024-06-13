@@ -51,7 +51,7 @@ const runBenchmark = async () => {
                 await main({
                     testUrl: example.url,
                     modelName: "gpt-4o",
-                    specLimit: example.specLimit ?? 1,
+                    specLimit: example.specLimit ?? 10,
                     specificSpecToTest: example.specToTest,
                 });
 
