@@ -8,16 +8,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const fullCycleExamples = [
-    // { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
-    // { url: "https://demo.realworld.io/", shouldPass: true },
-    // { url: "https://astexplorer.net/", shouldPass: true },
-    // { url: "https://excalidraw.com/", shouldPass: true },
-    // { url: "https://vscode.dev/", shouldPass: true },
-    // {
-    //     url: "https://todomvc-with-one-bug.vercel.app",
-    //     shouldPass: false,
-    //     humanNote: "The delete button on todos is broken",
-    // },
+    { url: "https://todomvc.com/examples/react/dist/", shouldPass: true },
+    { url: "https://demo.realworld.io/", shouldPass: true },
+    { url: "https://astexplorer.net/", shouldPass: true },
+    { url: "https://excalidraw.com/", shouldPass: true },
+    { url: "https://vscode.dev/", shouldPass: true },
+    {
+        url: "https://todomvc-with-one-bug.vercel.app",
+        shouldPass: false,
+        humanNote: "The delete button on todos is broken",
+    },
 ];
 
 const specExamples = [
@@ -26,11 +26,11 @@ const specExamples = [
         shouldPass: true,
         specToTest: "The user should be able to add todos",
     },
-    // {
-    //     url: "https://todomvc-with-one-bug.vercel.app",
-    //     shouldPass: false,
-    //     specToTest: "The user should be able to delete todos",
-    // },
+    {
+        url: "https://todomvc-with-one-bug.vercel.app",
+        shouldPass: false,
+        specToTest: "The user should be able to delete todos",
+    },
 ];
 
 const combinedExamples = [...fullCycleExamples, ...specExamples];
