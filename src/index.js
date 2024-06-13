@@ -349,7 +349,7 @@ export async function main({
 }
 
 export async function newCompletion({ messages, schema, model }) {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
         model,
         messages,
         temperature: 0.0,
@@ -361,7 +361,8 @@ export async function newCompletion({ messages, schema, model }) {
 
     logger.info(JSON.stringify(object, null, 4));
 
-    return object;
+    const { completionTokens, promptTokens } = usage;
+    return { object, completionTokens, promptTokens };
 }
 
 async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
@@ -502,7 +503,11 @@ export async function createTestPlan({ videoFrames, model }) {
         },
     ];
 
-    const testPlan = await newCompletion({
+    const {
+        object: testPlan,
+        completionTokens,
+        promptTokens,
+    } = await newCompletion({
         messages: conversationHistory,
         schema: testPlanSchema,
         model,
@@ -519,7 +524,7 @@ export async function createTestPlan({ videoFrames, model }) {
         }
     });
 
-    return { testPlan: testPlanJson };
+    return { testPlan: testPlanJson, completionTokens, promptTokens };
 }
 
 export async function runTestSpec({
@@ -546,6 +551,8 @@ export async function runTestSpec({
         },
     ];
     const actionsTaken = [];
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
     try {
         await page.goto(testUrl);
@@ -607,11 +614,18 @@ export async function runTestSpec({
                 ],
             });
 
-            const action = await newCompletion({
+            const {
+                object: action,
+                completionTokens,
+                promptTokens,
+            } = await newCompletion({
                 messages: conversationHistory,
                 schema: actionStepSchema,
                 model,
             });
+
+            totalInputTokens += promptTokens;
+            totalOutputTokens += completionTokens;
 
             conversationHistory.push({
                 role: "assistant",
@@ -643,6 +657,8 @@ export async function runTestSpec({
                     spec,
                     status: "passed",
                     actions: actionsTaken,
+                    totalInputTokens,
+                    totalOutputTokens,
                 });
             } else if (
                 JSON.stringify(action).includes(magicStrings.specFailed)
@@ -655,6 +671,8 @@ export async function runTestSpec({
                     status: "failed",
                     reason: action?.action?.explanationWhySpecComplete,
                     actions: actionsTaken,
+                    totalInputTokens,
+                    totalOutputTokens,
                 });
                 specFulfilled = true;
             }
@@ -667,6 +685,8 @@ export async function runTestSpec({
                 status: "failed",
                 reason: `Max iterations (${maxIterations}) reached`,
                 actions: actionsTaken,
+                totalInputTokens,
+                totalOutputTokens,
             });
         }
     } finally {

@@ -14,8 +14,8 @@ beforeEach(() => {
 describe("Stub test to make sure jest mocking is setup correctly", () => {
     test("newCompletion relies on the mockGenerateObject function", async () => {
         const whatWeExpect = { arrayOfSpecs: ["spec1", "spec23"] };
-        generateObject.mockResolvedValue({ object: whatWeExpect });
-        const result = await newCompletion({});
+        generateObject.mockResolvedValue({ object: whatWeExpect, usage: {} });
+        const { object: result } = await newCompletion({});
         expect(result).toEqual(whatWeExpect);
     });
 });

@@ -55,6 +55,37 @@ const runBenchmark = async () => {
                 specificSpecToTest: example.specToTest,
             });
 
+            const allPassed = testResults.every(
+                (result) => result.status === "passed",
+            );
+
+            if (allPassed) {
+                results.push({ testUrl: example.url, status: "passed" });
+                if (example.shouldPass) {
+                    truePositives++;
+                } else {
+                    falsePositives++;
+                }
+            } else {
+                results.push({ testUrl: example.url, status: "failed" });
+                if (example.shouldPass) {
+                    falseNegatives++;
+                } else {
+                    trueNegatives++;
+                }
+            }
+        } catch (error) {
+            console.error(`Error running autospec on ${example.url}:`, error);
+            results.push({
+                testUrl: example.url,
+                status: "error",
+                error: error.message,
+            });
+
+            // If the test is unable to execute, let's classify it as a false
+            // negative since we can't be sure if it would have passed or failed
+            falseNegatives++;
+        }
     }
 
     const precision = truePositives / (truePositives + falsePositives);
