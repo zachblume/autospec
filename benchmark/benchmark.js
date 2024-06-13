@@ -47,12 +47,13 @@ const runBenchmark = async () => {
     for (const example of combinedExamples) {
         console.log(`Running autospec on ${example.url}`);
         try {
-            const { testResults } = await main({
-                testUrl: example.url,
-                modelName: "gpt-4o",
-                specLimit: example.specLimit ?? 1,
-                specificSpecToTest: example.specToTest,
-            });
+            const { testResults, totalInputTokens, totalOutputTokens } =
+                await main({
+                    testUrl: example.url,
+                    modelName: "gpt-4o",
+                    specLimit: example.specLimit ?? 1,
+                    specificSpecToTest: example.specToTest,
+                });
 
             const allPassed = testResults.every(
                 (result) => result.status === "passed",
@@ -89,14 +90,6 @@ const runBenchmark = async () => {
 
     const precision = truePositives / (truePositives + falsePositives);
     const recall = truePositives / (truePositives + falseNegatives);
-    const totalInputTokens = results.reduce(
-        (sum, result) => sum + (result.totalInputTokens || 0),
-        0,
-    );
-    const totalOutputTokens = results.reduce(
-        (sum, result) => sum + (result.totalOutputTokens || 0),
-        0,
-    );
 
     const metrics = {
         total: results.length,

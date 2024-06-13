@@ -337,7 +337,15 @@ export async function main({
         await Promise.all(testPromises);
 
         logger.info("Test complete");
-        return { testResults };
+        const totalInputTokens = testResults.reduce(
+            (sum, result) => sum + (result.totalInputTokens || 0),
+            0,
+        );
+        const totalOutputTokens = testResults.reduce(
+            (sum, result) => sum + (result.totalOutputTokens || 0),
+            0,
+        );
+        return { testResults, totalInputTokens, totalOutputTokens };
     } catch (e) {
         logger.error("Test error", e);
         console.error(e);
