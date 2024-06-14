@@ -2,10 +2,10 @@ name: Run Autospec System Tests
 
 # For now, let's only manually trigger:
 on:
-    push:
-        branches:
-            - main
     workflow_dispatch:
+    # push:
+    #     branches:
+    #         - main
 # pull_request:
 #     branches:
 #         - main
