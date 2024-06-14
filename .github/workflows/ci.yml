@@ -26,8 +26,8 @@ jobs:
             - name: Install dependencies
               run: npm install
 
-            - name: Install Playwright dependencies
-              run: npx playwright install
+            - name: Install Playwright (chrome only)
+              run: npx playwright install chrome
 
             - name: Run Unit Tests
               run: npm run test
