@@ -38,7 +38,11 @@ jobs:
               run: node benchmark/benchmark.js
 
             - name: Output Benchmark Summary to Github Action Summary
-              run: cat benchmark/benchmark-results/*.json > $GITHUB_STEP_SUMMARY
+              run: |
+                  # output some backticks:
+                  echo "\`\`\`\n"
+                  cat benchmark/benchmark-results/*.json > $GITHUB_STEP_SUMMARY
+                  echo "\n\`\`\`"
 
             - name: Upload Benchmark Results
               uses: actions/upload-artifact@v4
