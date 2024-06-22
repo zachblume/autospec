@@ -233,6 +233,7 @@ export async function main({
     apiKey = null,
     specFile = null,
     specificSpecToTest = null,
+    trajectoriesPath = "./trajectories",
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -243,7 +244,7 @@ export async function main({
 
     logger.add(
         new winston.transports.File({
-            filename: `./trajectories/${runId}/combined.log`,
+            filename: `${trajectoriesPath}/${runId}/combined.log`,
             format: winston.format.combine(
                 winston.format.printf(
                     ({ timestamp, level, message }) =>
@@ -309,8 +310,17 @@ export async function main({
         } else if (specFile) {
             testPlan = await loadSpecsFromFileOrStdin(specFile);
         } else {
-            await visitPages({ page, runId, client, testUrl });
-            const { videoFrames } = await getVideoFrames({ runId });
+            await visitPages({
+                page,
+                runId,
+                client,
+                testUrl,
+                trajectoriesPath,
+            });
+            const { videoFrames } = await getVideoFrames({
+                runId,
+                trajectoriesPath,
+            });
             const { testPlan: generatedTestPlan } = await createTestPlan({
                 videoFrames,
                 model,
@@ -331,6 +341,7 @@ export async function main({
                 model,
                 apiKey,
                 testUrl,
+                trajectoriesPath,
             }),
         );
 
@@ -352,7 +363,12 @@ export async function main({
         return { testResults };
     } finally {
         await browser.close();
-        await printTestResults({ runId, testResults, testUrl });
+        await printTestResults({
+            runId,
+            testResults,
+            testUrl,
+            trajectoriesPath,
+        });
     }
 }
 
@@ -396,6 +412,7 @@ export async function initializeBrowser({
     runId,
     browser: browserPassedThrough,
     testUrl,
+    trajectoriesPath,
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
@@ -409,7 +426,7 @@ export async function initializeBrowser({
             width: 1024,
         },
         recordVideo: {
-            dir: `./trajectories/${runId}`,
+            dir: `${trajectoriesPath}/${runId}`,
             size: { width: 1024, height: 1024 },
         },
         logger: {
@@ -438,7 +455,13 @@ export async function initializeBrowser({
     return { browser, context, page, client };
 }
 
-export async function visitPages({ page, runId, client, testUrl }) {
+export async function visitPages({
+    page,
+    runId,
+    client,
+    testUrl,
+    trajectoriesPath,
+}) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -454,7 +477,7 @@ export async function visitPages({ page, runId, client, testUrl }) {
         await page.goto(url);
         await saveScreenshotWithCursor({
             page,
-            path: `trajectories/${runId}/screenshot-${i}.png`,
+            path: `${trajectoriesPath}/${runId}/screenshot-${i}.png`,
             client,
         });
         const links = await page.$$eval("a", (as) => as.map((a) => a.href));
@@ -470,9 +493,9 @@ export async function visitPages({ page, runId, client, testUrl }) {
     }
 }
 
-export async function getVideoFrames({ runId }) {
+export async function getVideoFrames({ runId, trajectoriesPath }) {
     return new Promise((resolve, reject) => {
-        fs.readdir(`./trajectories/${runId}`, (err, files) => {
+        fs.readdir(`${trajectoriesPath}/${runId}`, (err, files) => {
             if (err) {
                 reject(err);
                 return;
@@ -481,7 +504,7 @@ export async function getVideoFrames({ runId }) {
                 .sort()
                 .filter((file) => file.endsWith(".png"))
                 .map((file) => {
-                    const path = `./trajectories/${runId}/${file}`;
+                    const path = `${trajectoriesPath}/${runId}/${file}`;
                     const screenshot = fs.readFileSync(path);
                     return {
                         type: "image",
@@ -543,11 +566,13 @@ export async function runTestSpec({
     specId,
     model,
     testUrl,
+    trajectoriesPath,
 }) {
     const { context, page, client } = await initializeBrowser({
         runId,
         browser,
         testUrl,
+        trajectoriesPath,
     });
 
     let specFulfilled = false;
@@ -567,12 +592,12 @@ export async function runTestSpec({
         while (!specFulfilled && ++k < maxIterations) {
             await saveScreenshotWithCursor({
                 page,
-                path: `./trajectories/${runId}/screenshot-${specId}-${k}.png`,
+                path: `${trajectoriesPath}/${runId}/screenshot-${specId}-${k}.png`,
                 client,
             });
 
             const screenshot = fs.readFileSync(
-                `./trajectories/${runId}/screenshot-${specId}-${k}.png`,
+                `${trajectoriesPath}/${runId}/screenshot-${specId}-${k}.png`,
             );
 
             const { x: currentX, y: currentY } = await page.evaluate(() =>
@@ -600,7 +625,7 @@ export async function runTestSpec({
                             \`\`\`
                             Here is an HTML snapshot of the page:
                             ${fs.readFileSync(
-                                `./trajectories/${runId}/screenshot-${specId}-${k}.html`,
+                                `${trajectoriesPath}/${runId}/screenshot-${specId}-${k}.html`,
                             )}
                             \`\`\`
                         `,
@@ -789,7 +814,12 @@ export async function saveScreenshotWithCursor({ page, path, client }) {
     await new Promise((resolve) => out.on("finish", resolve));
 }
 
-export async function printTestResults({ runId, testResults, testUrl }) {
+export async function printTestResults({
+    runId,
+    testResults,
+    testUrl,
+    trajectoriesPath,
+}) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
 
@@ -813,7 +843,7 @@ export async function printTestResults({ runId, testResults, testUrl }) {
     });
 
     // Write the successful tests to a file
-    const testFilePath = `./trajectories/${runId}/successfulTests-${runId}.spec.js`;
+    const testFilePath = `${trajectoriesPath}/${runId}/successfulTests-${runId}.spec.js`;
     let fileContent = `import { test } from '@playwright/test';\n\n`;
 
     const successfulTests = testResults.filter(
