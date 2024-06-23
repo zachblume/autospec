@@ -234,6 +234,7 @@ export async function main({
     specFile = null,
     specificSpecToTest = null,
     trajectoriesPath = "./trajectories",
+    browserPassThrough,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -301,6 +302,7 @@ export async function main({
     const { browser, context, page, client } = await initializeBrowser({
         runId,
         testUrl,
+        ...(browserPassThrough ? { browser: browserPassThrough } : {}),
     });
 
     try {
