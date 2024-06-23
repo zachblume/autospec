@@ -234,7 +234,6 @@ export async function main({
     specFile = null,
     specificSpecToTest = null,
     trajectoriesPath = "./trajectories",
-    browserLaunchOptions,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -343,7 +342,6 @@ export async function main({
                 apiKey,
                 testUrl,
                 trajectoriesPath,
-                browserLaunchOptions,
             }),
         );
 
@@ -415,13 +413,9 @@ export async function initializeBrowser({
     browser: browserPassedThrough,
     testUrl,
     trajectoriesPath,
-    browserLaunchOptions,
 }) {
     const browser =
-        browserPassedThrough ||
-        (await playwright.chromium.launch({
-            ...(browserLaunchOptions ? browserLaunchOptions : {}),
-        }));
+        browserPassedThrough || (await playwright.chromium.launch());
     const context = await browser.newContext({
         viewport: {
             height: 1024,
@@ -573,7 +567,6 @@ export async function runTestSpec({
     model,
     testUrl,
     trajectoriesPath,
-    browserLaunchOptions,
 }) {
     const { context, page, client } = await initializeBrowser({
         runId,
