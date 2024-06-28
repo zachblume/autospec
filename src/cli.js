@@ -4,6 +4,7 @@
 import { main } from "./index.js";
 import readline from "readline";
 import inquirer from "inquirer";
+import fs from "fs";
 
 const args = process.argv.slice(2);
 
@@ -97,6 +98,15 @@ const getVars = async () => {
 };
 
 const run = async () => {
+    // If --version or -v is passed, print the package version and exit.
+    if (args.includes("--version") || args.includes("-v")) {
+        const { version } = JSON.parse(
+            fs.readFileSync("./package.json", "utf8"),
+        );
+        console.log(`autospec version ${version}`);
+        process.exit(0);
+    }
+
     const { testUrl, modelName, specLimit, apiKey, specFile } = await getVars();
     if (!apiKey) {
         console.warn(

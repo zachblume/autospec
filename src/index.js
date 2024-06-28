@@ -1,5 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createCanvas, loadImage } from "canvas";
+import sharp from "sharp";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
@@ -305,6 +305,7 @@ export async function main({
         testUrl,
         ...(browserPassThrough ? { browser: browserPassThrough } : {}),
         recordVideo,
+        trajectoriesPath,
     });
 
     try {
@@ -810,20 +811,20 @@ export async function saveScreenshotWithCursor({ page, path, client }) {
 
     // Capture screenshot with cursor
     const { x, y } = await page.evaluate(() => window.getMousePosition());
-    const screenshotBuffer = await page.screenshot();
-    const img = await loadImage(screenshotBuffer);
-    const canvas = createCanvas(img.width, img.height);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
 
-    const out = fs.createWriteStream(path);
-    const stream = canvas.createPNGStream();
-    stream.pipe(out);
-    await new Promise((resolve) => out.on("finish", resolve));
+    const screenshotBuffer = await page.screenshot();
+
+    // Create an image with cursor
+    const img = sharp(screenshotBuffer);
+    const { width, height } = await img.metadata();
+
+    const cursor = Buffer.from(`
+        <svg height="${height}" width="${width}">
+            <circle cx="${x}" cy="${y}" r="4" fill="red" />
+        </svg>
+    `);
+
+    await img.composite([{ input: cursor, blend: "over" }]).toFile(path);
 }
 
 export async function printTestResults({
