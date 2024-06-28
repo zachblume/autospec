@@ -335,13 +335,14 @@ export async function main({
         }
 
         // Cleanup the context, but leave the browser alive as a global
-        await context.close();
+        // await context.close();
 
         const testPromises = testPlan.slice(0, specLimit).map((spec, i) =>
             runTestSpec({
                 runId,
                 spec,
                 browser,
+                context,
                 specId: i,
                 model,
                 apiKey,
@@ -368,6 +369,7 @@ export async function main({
         console.error(e);
         return { testResults };
     } finally {
+        await context.close();
         await browser.close();
         await printTestResults({
             runId,
@@ -417,36 +419,41 @@ async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
 export async function initializeBrowser({
     runId,
     browser: browserPassedThrough,
+    context: contextPassedThrough,
     testUrl,
     trajectoriesPath,
     recordVideo = true,
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
-    const context = await browser.newContext({
-        viewport: {
-            height: 1024,
-            width: 1024,
-        },
-        screen: {
-            height: 1024,
-            width: 1024,
-        },
-        ...(recordVideo === true
-            ? {
-                  recordVideo: {
-                      dir: `${trajectoriesPath}/${runId}`,
-                      size: { width: 1024, height: 1024 },
-                  },
-              }
-            : {}),
-        logger: {
-            // isEnabled: (name, severity) => true,
-            isEnabled: () => true,
-            log: (name, severity, message) =>
-                logger.info(`Playwright - ${message} [${name}] [${severity}]`),
-        },
-    });
+    const context =
+        contextPassedThrough ||
+        (await browser.newContext({
+            viewport: {
+                height: 1024,
+                width: 1024,
+            },
+            screen: {
+                height: 1024,
+                width: 1024,
+            },
+            ...(recordVideo === true
+                ? {
+                      recordVideo: {
+                          dir: `${trajectoriesPath}/${runId}`,
+                          size: { width: 1024, height: 1024 },
+                      },
+                  }
+                : {}),
+            logger: {
+                // isEnabled: (name, severity) => true,
+                isEnabled: () => true,
+                log: (name, severity, message) =>
+                    logger.info(
+                        `Playwright - ${message} [${name}] [${severity}]`,
+                    ),
+            },
+        }));
     context.setDefaultTimeout(2500);
     const page = await context.newPage();
     const client = await context.newCDPSession(page);
@@ -573,6 +580,7 @@ export async function runTestSpec({
     runId,
     spec,
     browser,
+    context,
     maxIterations = 10,
     specId,
     model,
@@ -580,9 +588,10 @@ export async function runTestSpec({
     trajectoriesPath,
     recordVideo = true,
 }) {
-    const { context, page, client } = await initializeBrowser({
+    const { page, client } = await initializeBrowser({
         runId,
         browser,
+        context,
         testUrl,
         trajectoriesPath,
         recordVideo,
