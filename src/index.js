@@ -235,6 +235,7 @@ export async function main({
     specificSpecToTest = null,
     trajectoriesPath = "./trajectories",
     browserPassThrough,
+    recordVideo = true,
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -303,6 +304,7 @@ export async function main({
         runId,
         testUrl,
         ...(browserPassThrough ? { browser: browserPassThrough } : {}),
+        recordVideo,
     });
 
     try {
@@ -344,6 +346,7 @@ export async function main({
                 apiKey,
                 testUrl,
                 trajectoriesPath,
+                recordVideo,
             }),
         );
 
@@ -415,6 +418,7 @@ export async function initializeBrowser({
     browser: browserPassedThrough,
     testUrl,
     trajectoriesPath,
+    recordVideo = true,
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
@@ -427,10 +431,14 @@ export async function initializeBrowser({
             height: 1024,
             width: 1024,
         },
-        recordVideo: {
-            dir: `${trajectoriesPath}/${runId}`,
-            size: { width: 1024, height: 1024 },
-        },
+        ...(recordVideo === true
+            ? {
+                  recordVideo: {
+                      dir: `${trajectoriesPath}/${runId}`,
+                      size: { width: 1024, height: 1024 },
+                  },
+              }
+            : {}),
         logger: {
             // isEnabled: (name, severity) => true,
             isEnabled: () => true,
@@ -569,12 +577,14 @@ export async function runTestSpec({
     model,
     testUrl,
     trajectoriesPath,
+    recordVideo = true,
 }) {
     const { context, page, client } = await initializeBrowser({
         runId,
         browser,
         testUrl,
         trajectoriesPath,
+        recordVideo,
     });
 
     let specFulfilled = false;
