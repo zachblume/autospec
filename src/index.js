@@ -7,7 +7,7 @@ import { z } from "zod";
 import chalk from "chalk";
 import dotenv from "dotenv";
 import fs from "fs";
-import playwright from "playwright-core";
+import playwright from "playwright";
 import stripAnsi from "strip-ansi";
 import winston from "winston";
 
