@@ -3,9 +3,9 @@
     "version": "0.0.16",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
-        "autospecai": "src/cli.js"
+        "autospecai": "dist/cli.js"
     },
-    "main": "src/index.js",
+    "main": "dist/index.js",
     "type": "module",
     "keywords": [
         "ai",
@@ -22,7 +22,8 @@
     "scripts": {
         "lint": "eslint . --fix",
         "format": "npx prettier --write .",
-        "test": "npx jest --bail --passWithNoTests --testPathPattern unittests"
+        "test": "npx jest --bail --passWithNoTests --testPathPattern unittests",
+        "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx,json,css,scss}": "prettier --write"
@@ -45,7 +46,9 @@
         "@babel/preset-env": "^7.24.7",
         "@eslint/js": "^9.4.0",
         "@playwright/test": "^1.45.0",
+        "@types/inquirer": "^9.0.7",
         "babel-jest": "^29.7.0",
+        "esbuild": "0.23.0",
         "eslint": "^9.4.0",
         "globals": "^15.4.0",
         "husky": "^9.0.11",
