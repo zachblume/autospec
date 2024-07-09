@@ -24,7 +24,7 @@
         "format": "npx prettier --write .",
         "test": "npx jest --bail --passWithNoTests --testPathPattern unittests",
         "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist",
-        "tsc": "tsc --noEmit ./src/*.ts ./benchmark/*.ts"
+        "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx,json,css,scss}": "prettier --write"
