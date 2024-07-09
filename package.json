@@ -3,9 +3,9 @@
     "version": "0.0.16",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
-        "autospecai": "dist/cli.js"
+        "autospecai": "dist/src/cli.js"
     },
-    "main": "dist/index.js",
+    "main": "dist/src/index.js",
     "type": "module",
     "keywords": [
         "ai",
@@ -23,7 +23,8 @@
         "lint": "eslint . --fix",
         "format": "npx prettier --write .",
         "test": "npx jest --bail --passWithNoTests --testPathPattern unittests",
-        "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist"
+        "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist",
+        "tsc": "tsc --noEmit ./src/*.ts ./benchmark/*.ts"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx,json,css,scss}": "prettier --write"
