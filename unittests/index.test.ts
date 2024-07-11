@@ -1,21 +1,22 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { actionStepSchema, newCompletion } from "../src/index";
+import { vi, beforeEach, describe, Mock, test, expect } from "vitest";
 
-jest.mock("@ai-sdk/openai", () => ({
-    createOpenAI: jest.fn(() => ({})),
+vi.mock("@ai-sdk/openai", () => ({
+    createOpenAI: vi.fn(() => ({})),
 }));
 
-jest.mock("ai");
+vi.mock("ai");
 
 beforeEach(() => {
-    (createOpenAI as jest.Mock).mockReturnValue(() => ({}));
+    (createOpenAI as Mock).mockReturnValue(() => ({}));
 });
 
 describe("Stub test to make sure jest mocking is setup correctly", () => {
     test("newCompletion relies on the mockGenerateObject function", async () => {
         const whatWeExpect = { arrayOfSpecs: ["spec1", "spec23"] };
-        (generateObject as jest.Mock).mockResolvedValue({
+        (generateObject as Mock).mockResolvedValue({
             object: whatWeExpect,
             usage: {},
         });

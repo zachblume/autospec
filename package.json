@@ -22,7 +22,7 @@
     "scripts": {
         "lint": "eslint . --fix",
         "format": "npx prettier --write .",
-        "test": "npx jest --bail --passWithNoTests --testPathPattern unittests",
+        "test": "npx vitest run ./unittests",
         "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist",
         "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
@@ -48,14 +48,13 @@
         "@eslint/js": "^9.4.0",
         "@playwright/test": "^1.45.0",
         "@types/inquirer": "^9.0.7",
-        "babel-jest": "^29.7.0",
         "esbuild": "0.23.0",
         "eslint": "^9.4.0",
         "globals": "^15.4.0",
         "husky": "^9.0.11",
-        "jest": "^29.7.0",
         "lint-staged": "^15.2.5",
         "prettier": "^3.3.1",
-        "typescript": "^5.5.3"
+        "typescript": "^5.5.3",
+        "vitest": "^2.0.2"
     }
 }
