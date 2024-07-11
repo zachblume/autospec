@@ -24,6 +24,7 @@
         "format": "npx prettier --write .",
         "test": "npx vitest run ./unittests",
         "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist",
+        "benchmark": "node ./dist/benchmark/benchmark.js",
         "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
     "lint-staged": {
