@@ -2,14 +2,20 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import sharp from "sharp";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { CoreMessage, generateObject } from "ai";
 import { z } from "zod";
 import chalk from "chalk";
 import dotenv from "dotenv";
 import fs from "fs";
-import playwright from "playwright";
+import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
 import winston from "winston";
+
+declare global {
+    interface Window {
+        getMousePosition: () => { x: number; y: number }; // Adjust the type of 'pw' if it's more specific
+    }
+}
 
 dotenv.config();
 
@@ -222,20 +228,41 @@ export const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
-export const testResults = [];
+type TestResult = {
+    spec: string;
+    status: "passed" | "failed";
+    actions: z.infer<typeof actionStepSchema>[];
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    reason?: string;
+};
+
+export const testResults: TestResult[] = [];
+
+type ModelName = "gpt-4o" | "gemini-1.5-flash-latest" | "claude-3-haiku";
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
-    modelName = process.env.MODEL,
+    modelName = (process.env.MODEL as ModelName) || "gpt-4o",
     specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
-    apiKey = null,
-    specFile = null,
-    specificSpecToTest = null,
+    apiKey,
+    specFile,
+    specificSpecToTest,
     trajectoriesPath = "./trajectories",
-    browserPassThrough,
+    browserPassThrough = undefined,
     recordVideo = true,
+}: {
+    testUrl?: string;
+    modelName?: "gpt-4o" | "gemini-1.5-flash-latest" | "claude-3-haiku";
+    specLimit?: number;
+    apiKey?: string;
+    specFile?: string;
+    specificSpecToTest?: string;
+    trajectoriesPath?: string;
+    browserPassThrough?: Browser;
+    recordVideo?: boolean;
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -300,7 +327,7 @@ export async function main({
     };
     const model = modelConfigs[modelName];
 
-    const { browser, context, page, client } = await initializeBrowser({
+    const { browser, context, page } = await initializeBrowser({
         runId,
         testUrl,
         ...(browserPassThrough ? { browser: browserPassThrough } : {}),
@@ -309,7 +336,7 @@ export async function main({
     });
 
     try {
-        let testPlan;
+        let testPlan: string[];
         if (specificSpecToTest) {
             testPlan = [specificSpecToTest];
         } else if (specFile) {
@@ -318,7 +345,6 @@ export async function main({
             await visitPages({
                 page,
                 runId,
-                client,
                 testUrl,
                 trajectoriesPath,
             });
@@ -329,7 +355,6 @@ export async function main({
             const { testPlan: generatedTestPlan } = await createTestPlan({
                 videoFrames,
                 model,
-                apiKey,
             });
             testPlan = generatedTestPlan;
         }
@@ -345,7 +370,6 @@ export async function main({
                 context,
                 specId: i,
                 model,
-                apiKey,
                 testUrl,
                 trajectoriesPath,
                 recordVideo,
@@ -381,7 +405,7 @@ export async function main({
 }
 
 export async function newCompletion({ messages, schema, model }) {
-    const { object, usage } = await generateObject({
+    const { object, usage } = await generateObject<typeof schema>({
         model,
         messages,
         temperature: 0.0,
@@ -399,7 +423,7 @@ export async function newCompletion({ messages, schema, model }) {
 
 async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
     const hostOfTestUrl = new URL(testUrl).host;
-    await page.on("frameNavigated", async (frame) => {
+    await page.on("frameNavigated", async (frame: Frame) => {
         const currentUrl = frame.url();
         const urlObject = new URL(currentUrl);
         if (urlObject.host !== hostOfTestUrl) {
@@ -423,6 +447,13 @@ export async function initializeBrowser({
     testUrl,
     trajectoriesPath,
     recordVideo = true,
+}: {
+    runId: string;
+    testUrl: string;
+    trajectoriesPath: string;
+    recordVideo: boolean;
+    browser?: Browser;
+    context?: BrowserContext;
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
@@ -456,7 +487,6 @@ export async function initializeBrowser({
         }));
     context.setDefaultTimeout(2500);
     const page = await context.newPage();
-    const client = await context.newCDPSession(page);
 
     await page.addInitScript(() => {
         let x = 0,
@@ -470,16 +500,10 @@ export async function initializeBrowser({
 
     await preventBrowserFromNavigatingToOtherHosts({ page, testUrl });
 
-    return { browser, context, page, client };
+    return { browser, context, page };
 }
 
-export async function visitPages({
-    page,
-    runId,
-    client,
-    testUrl,
-    trajectoriesPath,
-}) {
+export async function visitPages({ page, runId, testUrl, trajectoriesPath }) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -496,9 +520,10 @@ export async function visitPages({
         await saveScreenshotWithCursor({
             page,
             path: `${trajectoriesPath}/${runId}/screenshot-${i}.png`,
-            client,
         });
-        const links = await page.$$eval("a", (as) => as.map((a) => a.href));
+        const links = await page.$$eval("a", (as: HTMLAnchorElement[]) =>
+            as.map((a: HTMLAnchorElement) => a.href),
+        );
         for (const link of links) {
             if (link.startsWith(testUrl) && !urlsAlreadyVisited.has(link)) {
                 urlsToVisit.add(link);
@@ -511,7 +536,10 @@ export async function visitPages({
     }
 }
 
-export async function getVideoFrames({ runId, trajectoriesPath }) {
+export async function getVideoFrames({
+    runId,
+    trajectoriesPath,
+}): Promise<{ videoFrames: { type: "image"; image: Buffer }[] }> {
     return new Promise((resolve, reject) => {
         fs.readdir(`${trajectoriesPath}/${runId}`, (err, files) => {
             if (err) {
@@ -525,10 +553,11 @@ export async function getVideoFrames({ runId, trajectoriesPath }) {
                     const path = `${trajectoriesPath}/${runId}/${file}`;
                     const screenshot = fs.readFileSync(path);
                     return {
-                        type: "image",
+                        type: "image" as const,
                         image: screenshot,
                     };
                 });
+
             resolve({ videoFrames: frames });
         });
     });
@@ -588,7 +617,7 @@ export async function runTestSpec({
     trajectoriesPath,
     recordVideo = true,
 }) {
-    const { page, client } = await initializeBrowser({
+    const { page } = await initializeBrowser({
         runId,
         browser,
         context,
@@ -599,13 +628,13 @@ export async function runTestSpec({
 
     let specFulfilled = false;
     let k = 0;
-    const conversationHistory = [
+    const conversationHistory: CoreMessage[] = [
         {
             role: "system",
             content: initialSystemPrompt,
         },
     ];
-    const actionsTaken = [];
+    const actionsTaken: z.infer<typeof actionStepSchema>[] = [];
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
@@ -615,7 +644,6 @@ export async function runTestSpec({
             await saveScreenshotWithCursor({
                 page,
                 path: `${trajectoriesPath}/${runId}/screenshot-${specId}-${k}.png`,
-                client,
             });
 
             const screenshot = fs.readFileSync(
@@ -811,9 +839,7 @@ export async function executeAction({
     }
 }
 
-// For now, let's leave client in
-// eslint-disable-next-line no-unused-vars
-export async function saveScreenshotWithCursor({ page, path, client }) {
+export async function saveScreenshotWithCursor({ page, path }) {
     // Capture the HTML snapshot
     const html = await page.content();
     fs.writeFileSync(path.replace(".png", ".html"), html);
@@ -841,6 +867,11 @@ export async function printTestResults({
     testResults,
     testUrl,
     trajectoriesPath,
+}: {
+    runId: string;
+    testResults: TestResult[];
+    testUrl: string;
+    trajectoriesPath: string;
 }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));
@@ -914,8 +945,8 @@ export async function printTestResults({
     logger.info(`Successful tests written to ${testFilePath}`);
 }
 
-async function loadSpecsFromFileOrStdin(specFile) {
-    let specs;
+async function loadSpecsFromFileOrStdin(specFile: string) {
+    let specs: string;
     if (specFile === "-") {
         // Read from stdin
         specs = await new Promise((resolve, reject) => {

@@ -2,13 +2,12 @@
 // CLI entry point for the autospec package.
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
-import readline from "readline";
 import inquirer from "inquirer";
 import fs from "fs";
 
 const args = process.argv.slice(2);
 
-const getArgValue = (argName, defaultValue) => {
+const getArgValue = <T>(argName: string, defaultValue: T) => {
     const index = args.indexOf(argName);
     return index !== -1 ? args[index + 1] : defaultValue;
 };
@@ -85,14 +84,14 @@ const getInteractiveInput = async () => {
 const getVars = async () => {
     if (!getArgValue("--url", null)) {
         console.warn("No URL provided. Entering interactive mode...");
-        return await getInteractiveInput().catch(console.error);
+        return await getInteractiveInput();
     } else {
         return {
-            testUrl: getArgValue("--url", null),
-            modelName: getArgValue("--model", "gpt-4o"),
-            specLimit: getArgValue("--spec_limit", 10),
-            apiKey: getArgValue("--apikey", null),
-            specFile: getArgValue("--specFile", null),
+            testUrl: getArgValue<string | null>("--url", null),
+            modelName: getArgValue<string | null>("--model", "gpt-4o"),
+            specLimit: getArgValue<string | number>("--spec_limit", 10),
+            apiKey: getArgValue<string | null>("--apikey", null),
+            specFile: getArgValue<string | null>("--specFile", null),
         };
     }
 };
@@ -116,7 +115,8 @@ const run = async () => {
     const { testResults } = await main({
         testUrl,
         modelName,
-        specLimit,
+        specLimit:
+            typeof specLimit == "string" ? parseInt(specLimit) : specLimit,
         apiKey,
         specFile,
     });

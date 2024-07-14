@@ -25,18 +25,34 @@ const specExamples = [
         url: "https://todomvc.com/examples/react/dist/",
         shouldPass: true,
         specToTest: "The user should be able to add todos",
+        specLimit: 10,
     },
     {
         url: "https://todomvc-with-one-bug.vercel.app",
         shouldPass: false,
         specToTest: "The user should be able to delete todos",
+        specLimit: 10,
     },
 ];
 
-const combinedExamples = [...fullCycleExamples, ...specExamples];
+type SpecExample = {
+    url: string;
+    shouldPass: boolean;
+    specToTest?: string;
+    specLimit?: number;
+};
+
+type BenchMarkResult = {
+    testUrl: string;
+    status: "passed" | "failed" | "error";
+    totalInputTokens?: number;
+    totalOutputTokens?: number;
+    error?: string;
+};
+const combinedExamples: SpecExample[] = [...fullCycleExamples, ...specExamples];
 
 const runBenchmark = async () => {
-    const results = [];
+    const results: BenchMarkResult[] = [];
     const commitSHA = execSync("git rev-parse HEAD").toString().trim();
     const datetime = new Date().toISOString();
     let truePositives = 0;

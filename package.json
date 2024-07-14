@@ -3,10 +3,11 @@
     "version": "0.0.16",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
-        "autospecai": "src/cli.js"
+        "autospecai": "build/src/cli.js"
     },
-    "main": "src/index.js",
     "type": "module",
+    "types": "build/src/index.d.ts",
+    "main": "build/src/index.js",
     "keywords": [
         "ai",
         "e2e",
@@ -22,7 +23,11 @@
     "scripts": {
         "lint": "eslint . --fix",
         "format": "npx prettier --write .",
-        "test": "npx jest --bail --passWithNoTests --testPathPattern unittests"
+        "test": "npx vitest run ./unittests",
+        "build": "tsc -p ./tsconfig.json",
+        "prebuild": "rm -rf ./build",
+        "benchmark": "node ./build/benchmark/benchmark.js",
+        "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx,json,css,scss}": "prettier --write"
@@ -42,11 +47,17 @@
         "zod": "^3.23.8"
     },
     "devDependencies": {
+        "@types/inquirer": "^9.0.7",
+        "@typescript-eslint/eslint-plugin": "^7.16.0",
+        "@typescript-eslint/parser": "^7.16.0",
+        "eslint": "^8.57.0",
+        "typescript": "^5.5.3",
+        "typescript-eslint": "^7.16.0",
+        "vitest": "^2.0.2"
         "@babel/preset-env": "^7.24.8",
         "@eslint/js": "^9.7.0",
         "@playwright/test": "^1.45.1",
         "babel-jest": "^29.7.0",
-        "eslint": "^9.7.0",
         "globals": "^15.8.0",
         "husky": "^9.0.11",
         "jest": "^29.7.0",
