@@ -3,10 +3,11 @@
     "version": "0.0.16",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
-        "autospecai": "dist/src/cli.js"
+        "autospecai": "build/src/cli.js"
     },
-    "main": "dist/src/index.js",
     "type": "module",
+    "types": "build/src/index.d.ts",
+    "main": "build/src/index.js",
     "keywords": [
         "ai",
         "e2e",
@@ -23,8 +24,9 @@
         "lint": "eslint . --fix",
         "format": "npx prettier --write .",
         "test": "npx vitest run ./unittests",
-        "build": "esbuild `find ./src ./benchmark -name '*.ts'` --platform=node --outdir=dist",
-        "benchmark": "node ./dist/benchmark/benchmark.js",
+        "build": "tsc -p ./tsconfig.json",
+        "prebuild": "rm -rf ./build",
+        "benchmark": "node ./build/benchmark/benchmark.js",
         "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
     "lint-staged": {
@@ -49,7 +51,6 @@
         "@eslint/js": "^9.4.0",
         "@playwright/test": "^1.45.0",
         "@types/inquirer": "^9.0.7",
-        "esbuild": "0.23.0",
         "eslint": "^9.4.0",
         "globals": "^15.4.0",
         "husky": "^9.0.11",

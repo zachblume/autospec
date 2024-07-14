@@ -17,6 +17,4 @@ tests/successfulTests*
 .aider*
 Pipfile
 benchmark/benchmark-results/*
-
-dist
-undefined
+build
