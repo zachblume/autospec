@@ -248,7 +248,7 @@ export type ModelName = z.infer<typeof modelNameSchema>;
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
-    modelName = process.env.MODEL || "gpt-4o",
+    modelName: unvalidatedModelName = process.env.MODEL || "gpt-4o",
     specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
@@ -289,11 +289,18 @@ export async function main({
     );
 
     // Validate the model name
-    modelNameSchema.parse(modelName);
+    modelNameSchema.parse(unvalidatedModelName);
+    const modelName = unvalidatedModelName as ModelName;
 
     // Roughly validate that an appropriate API key is provided by flag or env
     if (!apiKey) {
-        const errorMsg = ({ modelName, keyName }) => {
+        const errorMsg = ({
+            modelName,
+            keyName,
+        }: {
+            modelName: string;
+            keyName: string;
+        }) => {
             throw new Error(
                 `You specified ${modelName} as model but did not provide an ` +
                     `${keyName} API key.\nPlease provide an API key via the ` +
@@ -412,7 +419,26 @@ export async function main({
     }
 }
 
-export async function newCompletion({ messages, schema, model }) {
+type NewCompletionProps = {
+    messages: CoreMessage[];
+    schema: z.ZodSchema<any>;
+    model: ReturnType<
+        ReturnType<
+            | typeof createGoogleGenerativeAI
+            | typeof createOpenAI
+            | typeof createAnthropic
+        >
+    >;
+};
+export async function newCompletion({
+    messages,
+    schema,
+    model,
+}: NewCompletionProps): Promise<{
+    object: z.infer<typeof schema>;
+    completionTokens: number;
+    promptTokens: number;
+}> {
     const { object, usage } = await generateObject<typeof schema>({
         model,
         messages,
@@ -429,9 +455,16 @@ export async function newCompletion({ messages, schema, model }) {
     return { object, completionTokens, promptTokens };
 }
 
-async function preventBrowserFromNavigatingToOtherHosts({ page, testUrl }) {
+type preventBrowserFromNavigatingToOtherHostsProps = {
+    page: playwright.Page;
+    testUrl: string;
+};
+async function preventBrowserFromNavigatingToOtherHosts({
+    page,
+    testUrl,
+}: preventBrowserFromNavigatingToOtherHostsProps) {
     const hostOfTestUrl = new URL(testUrl).host;
-    await page.on("frameNavigated", async (frame: Frame) => {
+    await page.on("framenavigated", async (frame: Frame) => {
         const currentUrl = frame.url();
         const urlObject = new URL(currentUrl);
         if (urlObject.host !== hostOfTestUrl) {
@@ -511,7 +544,18 @@ export async function initializeBrowser({
     return { browser, context, page };
 }
 
-export async function visitPages({ page, runId, testUrl, trajectoriesPath }) {
+type visitPagesProps = {
+    page: playwright.Page;
+    runId: string;
+    testUrl: string;
+    trajectoriesPath: string;
+};
+export async function visitPages({
+    page,
+    runId,
+    testUrl,
+    trajectoriesPath,
+}: visitPagesProps) {
     await page.goto(testUrl);
     await page.waitForTimeout(100);
 
@@ -544,10 +588,16 @@ export async function visitPages({ page, runId, testUrl, trajectoriesPath }) {
     }
 }
 
+type getVideoFramesProps = {
+    runId: string;
+    trajectoriesPath: string;
+};
 export async function getVideoFrames({
     runId,
     trajectoriesPath,
-}): Promise<{ videoFrames: { type: "image"; image: Buffer }[] }> {
+}: getVideoFramesProps): Promise<{
+    videoFrames: { type: "image"; image: Buffer }[];
+}> {
     return new Promise((resolve, reject) => {
         fs.readdir(`${trajectoriesPath}/${runId}`, (err, files) => {
             if (err) {
@@ -571,8 +621,18 @@ export async function getVideoFrames({
     });
 }
 
-export async function createTestPlan({ videoFrames, model }) {
-    const conversationHistory = [
+export async function createTestPlan({
+    videoFrames,
+    model,
+}: {
+    videoFrames: { type: "image"; image: Buffer }[];
+    model: ReturnType<
+        | ReturnType<typeof createGoogleGenerativeAI>
+        | ReturnType<typeof createOpenAI>
+        | ReturnType<typeof createAnthropic>
+    >;
+}) {
+    const conversationHistory: CoreMessage[] = [
         {
             role: "system",
             content: initialSystemPrompt,
@@ -613,6 +673,16 @@ export async function createTestPlan({ videoFrames, model }) {
     return { testPlan: testPlanJson, completionTokens, promptTokens };
 }
 
+export function stringifyError(error: any) {
+    if (error instanceof Error) {
+        return error.message + "\n" + error.stack;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    return JSON.stringify(error, null, 4);
+}
+
 export async function runTestSpec({
     runId,
     spec,
@@ -624,6 +694,21 @@ export async function runTestSpec({
     testUrl,
     trajectoriesPath,
     recordVideo = true,
+}: {
+    runId: string;
+    spec: string;
+    browser: Browser;
+    context: BrowserContext;
+    maxIterations?: number;
+    specId: number;
+    model: ReturnType<
+        | ReturnType<typeof createGoogleGenerativeAI>
+        | ReturnType<typeof createOpenAI>
+        | ReturnType<typeof createAnthropic>
+    >;
+    testUrl: string;
+    trajectoriesPath: string;
+    recordVideo?: boolean;
 }) {
     const { page } = await initializeBrowser({
         runId,
@@ -734,7 +819,7 @@ export async function runTestSpec({
                             text: `
                                 The following error occurred while executing the action:
                                 \`\`\`
-                                ${result.error.message}
+                                ${stringifyError(result.error)}
                                 \`\`\`
                             `,
                         },
@@ -788,6 +873,9 @@ export async function runTestSpec({
 export async function executeAction({
     page,
     action: { action, planningThoughtAboutTheActionIWillTake },
+}: {
+    page: playwright.Page;
+    action: z.infer<typeof actionStepSchema>;
 }) {
     if (!action?.action) {
         console.error("No action provided", action);
@@ -837,7 +925,7 @@ export async function executeAction({
                 logger.info(`Spec marked as complete: ${action.reason}`);
                 break;
             default:
-                throw new Error(`Unknown action: ${action.action}`);
+                throw new Error(`Unknown action: ${JSON.stringify(action)}`);
         }
         await page.waitForTimeout(50);
         return { success: true, error: null };
@@ -847,7 +935,13 @@ export async function executeAction({
     }
 }
 
-export async function saveScreenshotWithCursor({ page, path }) {
+export async function saveScreenshotWithCursor({
+    page,
+    path,
+}: {
+    page: playwright.Page;
+    path: string;
+}) {
     // Capture the HTML snapshot
     const html = await page.content();
     fs.writeFileSync(path.replace(".png", ".html"), html);

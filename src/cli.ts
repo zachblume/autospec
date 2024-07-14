@@ -70,7 +70,7 @@ const getInteractiveInput = async () => {
         modelName,
         specLimit: parseInt(specLimit, 10) || 10,
         apiKey,
-        specFile: specFile || null,
+        specFile: specFile || undefined,
     };
 };
 
@@ -80,11 +80,11 @@ const getVars = async () => {
         return await getInteractiveInput();
     } else {
         return {
-            testUrl: getArgValue<string | null>("--url", null),
-            modelName: getArgValue<string | null>("--model", "gpt-4o"),
+            testUrl: getArgValue<string | undefined>("--url", undefined),
+            modelName: getArgValue<string | undefined>("--model", "gpt-4o"),
             specLimit: getArgValue<string | number>("--spec_limit", 10),
-            apiKey: getArgValue<string | null>("--apikey", null),
-            specFile: getArgValue<string | null>("--specFile", null),
+            apiKey: getArgValue<string | undefined>("--apikey", undefined),
+            specFile: getArgValue<string | undefined>("--specFile", undefined),
         };
     }
 };

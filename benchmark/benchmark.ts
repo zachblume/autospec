@@ -1,4 +1,4 @@
-import { main } from "../src/index.js";
+import { main, stringifyError } from "../src/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -100,7 +100,7 @@ const runBenchmark = async () => {
             results.push({
                 testUrl: example.url,
                 status: "error",
-                error: error.message,
+                error: stringifyError(error),
             });
 
             // If the test is unable to execute, let's classify it as a false

@@ -20,10 +20,13 @@ describe("Stub test to make sure jest mocking is setup correctly", () => {
             object: whatWeExpect,
             usage: {},
         });
+        const model = createOpenAI({
+            apiKey: "example_api_key",
+        })("gpt-4o");
         const { object: result } = await newCompletion({
             messages: [],
             schema: actionStepSchema,
-            model: "gpt-4o",
+            model,
         });
         expect(result).toEqual(whatWeExpect);
     });
