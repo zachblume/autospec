@@ -229,7 +229,7 @@ export const logger = winston.createLogger({
 });
 
 type TestResult = {
-    spec: any;
+    spec: string;
     status: "passed" | "failed";
     actions: z.infer<typeof actionStepSchema>[];
     totalInputTokens: number;
