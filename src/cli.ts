@@ -2,7 +2,7 @@
 // CLI entry point for the autospec package.
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
-import inquirer from "inquirer";
+import { input, select } from "@inquirer/prompts";
 import fs from "fs";
 
 const args = process.argv.slice(2);
@@ -41,43 +41,36 @@ if (args.includes("--help") || args.includes("-h")) {
 
 const getInteractiveInput = async () => {
     const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
-    const answers = await inquirer.prompt([
-        {
-            type: "input",
-            name: "testUrl",
-            message: "Enter the target URL: ",
-        },
-        {
-            type: "list",
-            name: "modelName",
-            message: "Choose a model:",
-            choices: models,
-            default: models[0],
-        },
-        {
-            type: "input",
-            name: "specLimit",
-            message: "Enter the spec limit (default: 10): ",
-            default: "10",
-        },
-        {
-            type: "input",
-            name: "apiKey",
-            message: "Enter the API key: ",
-        },
-        {
-            type: "input",
-            name: "specFile",
-            message: "Enter the spec file path (or leave blank): ",
-        },
-    ]);
+
+    const testUrl = await input({
+        message: "Enter the target URL:",
+    });
+
+    const modelName = await select({
+        message: "Choose a model:",
+        choices: models.map((model) => ({ name: model, value: model })),
+        default: models[0],
+    });
+
+    const specLimit = await input({
+        message: "Enter the spec limit (default: 10):",
+        default: "10",
+    });
+
+    const apiKey = await input({
+        message: "Enter the API key:",
+    });
+
+    const specFile = await input({
+        message: "Enter the spec file path (or leave blank):",
+    });
 
     return {
-        testUrl: answers.testUrl,
-        modelName: answers.modelName,
-        specLimit: parseInt(answers.specLimit, 10) || 10,
-        apiKey: answers.apiKey,
-        specFile: answers.specFile || null,
+        testUrl,
+        modelName,
+        specLimit: parseInt(specLimit, 10) || 10,
+        apiKey,
+        specFile: specFile || null,
     };
 };
 

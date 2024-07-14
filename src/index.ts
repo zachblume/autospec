@@ -239,11 +239,16 @@ type TestResult = {
 
 export const testResults: TestResult[] = [];
 
-type ModelName = "gpt-4o" | "gemini-1.5-flash-latest" | "claude-3-haiku";
+export const modelNameSchema = z.enum([
+    "gpt-4o",
+    "gemini-1.5-flash-latest",
+    "claude-3-haiku",
+]);
+export type ModelName = z.infer<typeof modelNameSchema>;
 
 export async function main({
     testUrl = process.env.URL || "http://localhost:3000",
-    modelName = (process.env.MODEL as ModelName) || "gpt-4o",
+    modelName = process.env.MODEL || "gpt-4o",
     specLimit = process.env.SPEC_LIMIT && parseInt(process.env.SPEC_LIMIT)
         ? parseInt(process.env.SPEC_LIMIT)
         : 10,
@@ -255,7 +260,7 @@ export async function main({
     recordVideo = true,
 }: {
     testUrl?: string;
-    modelName?: "gpt-4o" | "gemini-1.5-flash-latest" | "claude-3-haiku";
+    modelName?: string;
     specLimit?: number;
     apiKey?: string;
     specFile?: string;
@@ -282,6 +287,9 @@ export async function main({
             ),
         }),
     );
+
+    // Validate the model name
+    modelNameSchema.parse(modelName);
 
     // Roughly validate that an appropriate API key is provided by flag or env
     if (!apiKey) {
