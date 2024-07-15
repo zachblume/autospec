@@ -11,7 +11,7 @@ import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
 import winston from "winston";
 
-import * as schemas from "./schemas";
+import * as schemas from "./schemas.js";
 
 declare global {
     interface Window {
@@ -95,8 +95,8 @@ instructions:
 
     The possible actions are:
     [
-        { action:"hoverOver"; selector: String; nth: Number },
-        { action:"clickOn", selector: String; nth: Number },
+        { action:"hover"; selector: String; nth: Number },
+        { action:"c", selector: String; nth: Number },
         { action:"doubleClickOn"; selector: String; nth: Number },
         { action:"keyboardInputString"; selector: String; nth: Number; string:String },
         { action:"keyboardInputSingleKey"; selector: String; nth: Number; key:String },
