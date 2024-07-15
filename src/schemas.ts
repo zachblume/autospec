@@ -10,71 +10,71 @@ export const testPlanSchema = z.object({
 });
 
 // Define schemas for each action type
-export const hoverOverActionSchema = z.object({
-    action: z.literal("hoverOver"),
-    cssSelector: z.string(),
-    nth: z.number(),
+
+// This recorder actions need to match Playwrights.
+// https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/recorder/recorderActions.ts#L122
+export const ClickAction = z.object({
+    action: z.literal("click"),
+    selector: z.string(),
+    clickCount: z.number(),
+    // unused
+    // modifiers: z.number(),
+    // button: z.literal(['left', 'middle' , 'right'])
+    // position?: Point,
 });
 
-export const clickOnActionSchema = z.object({
-    action: z.literal("clickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
+export const FillAction = z.object({
+    action: z.literal("fill"),
+    selector: z.string(),
+    text: z.string(),
 });
 
-export const doubleClickOnActionSchema = z.object({
-    action: z.literal("doubleClickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const keyboardInputStringActionSchema = z.object({
-    action: z.literal("keyboardInputString"),
-    cssSelector: z.string(),
-    nth: z.number(),
-    string: z.string(),
-});
-
-export const keyboardInputSingleKeyActionSchema = z.object({
-    action: z.literal("keyboardInputSingleKey"),
-    cssSelector: z.string(),
-    nth: z.number(),
+export const PressAction = z.object({
+    action: z.literal("press"),
+    selector: z.string(),
     key: z.string(),
+    // unused
+    // modifiers: number
 });
 
-export const scrollActionSchema = z.object({
+export const NavigateAction = z.object({
+    action: z.literal("navigate"),
+    url: z.string(),
+});
+
+// Below this is custom actions.
+export const HoverAction = z.object({
+    action: z.literal("hover"),
+    selector: z.string(),
+});
+
+export const ScrollAction = z.object({
     action: z.literal("scroll"),
     deltaX: z.number(),
     deltaY: z.number(),
 });
 
-export const hardWaitActionSchema = z.object({
+export const HardWaitAction = z.object({
     action: z.literal("hardWait"),
     milliseconds: z.number(),
 });
 
-export const gotoURLActionSchema = z.object({
-    action: z.literal("gotoURL"),
-    url: z.string(),
-});
-
-export const markSpecAsCompleteActionSchema = z.object({
-    action: z.literal("markSpecAsComplete"),
+export const MarkAsCompleteAction = z.object({
+    action: z.literal("markAsComplete"),
     reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
     explanationWhySpecComplete: z.string(),
 });
 
 // Create a discriminated union of all action schemas
 export const actionSchema = z.discriminatedUnion("action", [
-    hoverOverActionSchema,
-    clickOnActionSchema,
-    doubleClickOnActionSchema,
-    keyboardInputStringActionSchema,
-    keyboardInputSingleKeyActionSchema,
-    scrollActionSchema,
-    hardWaitActionSchema,
-    gotoURLActionSchema,
-    markSpecAsCompleteActionSchema,
+    HoverAction,
+    ClickAction,
+    FillAction,
+    PressAction,
+    ScrollAction,
+    HardWaitAction,
+    NavigateAction,
+    MarkAsCompleteAction,
 ]);
 
 export const actionStepSchema = z.object({

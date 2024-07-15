@@ -1,6 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-import { actionStepSchema, newCompletion } from "../src/index";
+import { actionStepSchema } from "../src/schemas";
+import { newCompletion } from "../src";
 import { vi, beforeEach, describe, Mock, test, expect } from "vitest";
 
 vi.mock("@ai-sdk/openai", () => ({

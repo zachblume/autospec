@@ -74,7 +74,7 @@ instructions:
       rendered HTML of the page. You can use the HTML to cross-reference
       with the screenshot to make sure you are interacting with the correct
       elements.
-    - You always make up appropriate cssSelectors based on the HTML
+    - You always make up appropriate selectors based on the HTML
       snapshot, by relating the HTML snapshot to the screenshot you are
       provided, and then coming up with a valid css selector that you can
       use to interact with the element in question. You always use the nth
@@ -88,18 +88,18 @@ instructions:
       selector.
 
 3. You have an API of actions you can take: type Action = { action: String;
-    cssSelector?: String; nth?: Number; string?: String; key?: String;
+    selector?: String; nth?: Number; string?: String; key?: String;
     deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
     String; explanationWhySpecComplete?: String;
     }
 
     The possible actions are:
     [
-        { action:"hoverOver"; cssSelector: String; nth: Number },
-        { action:"clickOn", cssSelector: String; nth: Number },
-        { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
+        { action:"hoverOver"; selector: String; nth: Number },
+        { action:"clickOn", selector: String; nth: Number },
+        { action:"doubleClickOn"; selector: String; nth: Number },
+        { action:"keyboardInputString"; selector: String; nth: Number; string:String },
+        { action:"keyboardInputSingleKey"; selector: String; nth: Number; key:String },
         { action:"scroll"; deltaX:Number; deltaY:Number },
         { action:"hardWait"; milliseconds: Number },
         { action:"gotoURL"; url: String },
@@ -810,29 +810,21 @@ export async function executeAction({
 
     try {
         switch (action.action) {
-            case "hoverOver":
-                await page.locator(action.cssSelector).nth(action.nth).hover();
+            case "hover":
+                await page.locator(action.selector).hover();
                 break;
-            case "clickOn":
-                await page.locator(action.cssSelector).nth(action.nth).click();
+            case "click":
+                if ((action.clickCount = 2)) {
+                    await page.locator(action.selector).dblclick();
+                } else {
+                    await page.locator(action.selector).click();
+                }
                 break;
-            case "doubleClickOn":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .dblclick();
+            case "fill":
+                await page.locator(action.selector).fill(action.text);
                 break;
-            case "keyboardInputString":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .fill(action.string);
-                break;
-            case "keyboardInputSingleKey":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .press(action.key);
+            case "press":
+                await page.locator(action.selector).press(action.key);
                 break;
             case "scroll":
                 await page.mouse.wheel(action.deltaX, action.deltaY);
@@ -840,10 +832,10 @@ export async function executeAction({
             case "hardWait":
                 await page.waitForTimeout(action.milliseconds);
                 break;
-            case "gotoURL":
+            case "navigate":
                 await page.goto(action.url);
                 break;
-            case "markSpecAsComplete":
+            case "markAsComplete":
                 logger.info(`Spec marked as complete: ${action.reason}`);
                 break;
             default:
@@ -936,20 +928,21 @@ export async function printTestResults({
         fileContent += `test("${spec}", async ({ page }) => {\n`;
         actions.forEach(({ action }) => {
             switch (action.action) {
-                case "hoverOver":
-                    fileContent += `  await page.hover('${action.cssSelector}');\n`;
+                case "hover":
+                    fileContent += `  await page.hover('${action.selector}');\n`;
                     break;
-                case "clickOn":
-                    fileContent += `  await page.click('${action.cssSelector}');\n`;
+                case "click":
+                    if (action.clickCount === 2) {
+                        fileContent += `  await page.dblclick('${action.selector}');\n`;
+                    } else {
+                        fileContent += `  await page.click('${action.selector}');\n`;
+                    }
                     break;
-                case "doubleClickOn":
-                    fileContent += `  await page.dblclick('${action.cssSelector}');\n`;
+                case "fill":
+                    fileContent += `  await page.fill('${action.selector}', '${action.text}');\n`;
                     break;
-                case "keyboardInputString":
-                    fileContent += `  await page.fill('${action.cssSelector}', '${action.string}');\n`;
-                    break;
-                case "keyboardInputSingleKey":
-                    fileContent += `  await page.press('${action.cssSelector}', '${action.key}');\n`;
+                case "press":
+                    fileContent += `  await page.press('${action.selector}', '${action.key}');\n`;
                     break;
                 case "scroll":
                     fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
@@ -957,7 +950,7 @@ export async function printTestResults({
                 case "hardWait":
                     fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
                     break;
-                case "gotoURL":
+                case "navigate":
                     fileContent += `  await page.goto('${action.url}');\n`;
                     break;
             }
