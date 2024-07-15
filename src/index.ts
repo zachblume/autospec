@@ -87,29 +87,7 @@ instructions:
       other attributes or structural relationships to form a unique
       selector.
 
-3. You have an API of actions you can take: type Action = { action: String;
-    selector?: String; nth?: Number; string?: String; key?: String;
-    deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
-    String; explanationWhySpecComplete?: String;
-    }
-
-    The possible actions are:
-    [
-        { action:"hover"; selector: String; nth: Number },
-        { action:"c", selector: String; nth: Number },
-        { action:"doubleClickOn"; selector: String; nth: Number },
-        { action:"keyboardInputString"; selector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; selector: String; nth: Number; key:String },
-        { action:"scroll"; deltaX:Number; deltaY:Number },
-        { action:"hardWait"; milliseconds: Number },
-        { action:"gotoURL"; url: String },
-        {
-            action:"markSpecAsComplete";
-            reason:
-                "${schemas.magicStrings.specPassed}" | "${schemas.magicStrings.specFailed}";
-            explanationWhySpecComplete: String
-        },
-    ];
+3. You have an API of actions you can take:
 
     - If the screenshot already provided you enough information to answer
       this spec completely and say that the spec has passed, you will mark
