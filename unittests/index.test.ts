@@ -1,7 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { actionStepSchema } from "../src/schemas";
-import { newCompletion } from "../src";
+import { newCompletion, generateCode, TestResult } from "../src";
 import { vi, beforeEach, describe, Mock, test, expect } from "vitest";
 
 vi.mock("@ai-sdk/openai", () => ({
@@ -30,5 +30,52 @@ describe("Stub test to make sure jest mocking is setup correctly", () => {
             model,
         });
         expect(result).toEqual(whatWeExpect);
+    });
+});
+
+describe("Generate code from actions", () => {
+    test("Should match existing code snapshot", () => {
+        const testResults: TestResult[] = [
+            {
+                spec: "Should be able to Edit a TODO item",
+                status: "passed",
+                actions: [
+                    {
+                        planningThoughtAboutTheActionIWillTake:
+                            "Focus on the input",
+                        action: {
+                            action: "click" as const,
+                            clickCount: 2,
+                            selector: "#todo-input",
+                        },
+                    },
+                    {
+                        planningThoughtAboutTheActionIWillTake:
+                            "Fill in the new value",
+                        action: {
+                            action: "fill" as const,
+                            selector: "#todo-input",
+                            text: "Buy groceries",
+                        },
+                    },
+                    {
+                        planningThoughtAboutTheActionIWillTake:
+                            "Scroll to see the updated TODO Item",
+                        action: {
+                            action: "scroll" as const,
+                            deltaX: 1200,
+                            deltaY: 800,
+                        },
+                    },
+                ],
+                totalInputTokens: 1200,
+                totalOutputTokens: 4503,
+            },
+        ];
+        const testUrl = "http://google.com";
+
+        const code = generateCode({ testResults, testUrl });
+
+        expect(code).toMatchSnapshot();
     });
 });

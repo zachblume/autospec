@@ -126,7 +126,7 @@ export const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
-type TestResult = {
+export type TestResult = {
     spec: string;
     status: "passed" | "failed";
     actions: z.infer<typeof schemas.actionStepSchema>[];
@@ -856,6 +856,56 @@ export async function saveScreenshotWithCursor({
     await img.composite([{ input: cursor, blend: "over" }]).toFile(path);
 }
 
+export function generateCode({ testResults, testUrl }): string {
+    let fileContent = `import { test } from '@playwright/test';\n\n`;
+
+    const successfulTests = testResults.filter(
+        (result) => result.status === "passed",
+    );
+
+    // Add a beforeEach test hook to goto the testurl
+    fileContent += `test.beforeEach(async ({ page }) => {\n`;
+    fileContent += `  await page.goto('${testUrl}');\n`;
+    fileContent += `});\n\n`;
+
+    successfulTests.forEach(({ spec, actions }) => {
+        fileContent += `test("${spec}", async ({ page }) => {\n`;
+
+        actions.forEach(({ action }) => {
+            switch (action.action) {
+                case "hover":
+                    fileContent += `  await page.hover('${action.selector}');\n`;
+                    break;
+                case "click":
+                    if (action.clickCount === 2) {
+                        fileContent += `  await page.dblclick('${action.selector}');\n`;
+                    } else {
+                        fileContent += `  await page.click('${action.selector}');\n`;
+                    }
+                    break;
+                case "fill":
+                    fileContent += `  await page.fill('${action.selector}', '${action.text}');\n`;
+                    break;
+                case "press":
+                    fileContent += `  await page.press('${action.selector}', '${action.key}');\n`;
+                    break;
+                case "scroll":
+                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
+                    break;
+                case "hardWait":
+                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
+                    break;
+                case "navigate":
+                    fileContent += `  await page.goto('${action.url}');\n`;
+                    break;
+            }
+        });
+        fileContent += `});\n\n`;
+    });
+
+    return fileContent;
+}
+
 export async function printTestResults({
     runId,
     testResults,
@@ -889,52 +939,16 @@ export async function printTestResults({
         });
     });
 
+    const fileContent = generateCode({
+        testResults,
+        testUrl,
+    });
     // Write the successful tests to a file
     const testFilePath = `${trajectoriesPath}/${runId}/successfulTests-${runId}.spec.js`;
-    let fileContent = `import { test } from '@playwright/test';\n\n`;
 
     const successfulTests = testResults.filter(
         (result) => result.status === "passed",
     );
-
-    // Add a beforeEach test hook to goto the testurl
-    fileContent += `test.beforeEach(async ({ page }) => {\n`;
-    fileContent += `  await page.goto('${testUrl}');\n`;
-    fileContent += `});\n\n`;
-
-    successfulTests.forEach(({ spec, actions }) => {
-        fileContent += `test("${spec}", async ({ page }) => {\n`;
-        actions.forEach(({ action }) => {
-            switch (action.action) {
-                case "hover":
-                    fileContent += `  await page.hover('${action.selector}');\n`;
-                    break;
-                case "click":
-                    if (action.clickCount === 2) {
-                        fileContent += `  await page.dblclick('${action.selector}');\n`;
-                    } else {
-                        fileContent += `  await page.click('${action.selector}');\n`;
-                    }
-                    break;
-                case "fill":
-                    fileContent += `  await page.fill('${action.selector}', '${action.text}');\n`;
-                    break;
-                case "press":
-                    fileContent += `  await page.press('${action.selector}', '${action.key}');\n`;
-                    break;
-                case "scroll":
-                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
-                    break;
-                case "hardWait":
-                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
-                    break;
-                case "navigate":
-                    fileContent += `  await page.goto('${action.url}');\n`;
-                    break;
-            }
-        });
-        fileContent += `});\n\n`;
-    });
 
     fs.writeFileSync(testFilePath, fileContent, "utf-8");
     logger.info(`Successful tests written to ${testFilePath}`);
