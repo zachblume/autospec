@@ -11,6 +11,8 @@ import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
 import winston from "winston";
 
+import * as schemas from "./schemas";
+
 declare global {
     interface Window {
         getMousePosition: () => { x: number; y: number }; // Adjust the type of 'pw' if it's more specific
@@ -18,11 +20,6 @@ declare global {
 }
 
 dotenv.config();
-
-export const magicStrings = {
-    specPassed: "The spec passed",
-    specFailed: "The spec failed",
-};
 
 export const initialSystemPrompt = `
 You are an automated QA agent tasked with testing a web application just as
@@ -109,7 +106,7 @@ instructions:
         {
             action:"markSpecAsComplete";
             reason:
-                "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
+                "${schemas.magicStrings.specPassed}" | "${schemas.magicStrings.specFailed}";
             explanationWhySpecComplete: String
         },
     ];
@@ -140,83 +137,6 @@ instructions:
       or anything like that.
 `;
 
-export const testPlanSchema = z.object({
-    arrayOfSpecs: z.array(z.string()),
-});
-
-// Define schemas for each action type
-export const hoverOverActionSchema = z.object({
-    action: z.literal("hoverOver"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const clickOnActionSchema = z.object({
-    action: z.literal("clickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const doubleClickOnActionSchema = z.object({
-    action: z.literal("doubleClickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const keyboardInputStringActionSchema = z.object({
-    action: z.literal("keyboardInputString"),
-    cssSelector: z.string(),
-    nth: z.number(),
-    string: z.string(),
-});
-
-export const keyboardInputSingleKeyActionSchema = z.object({
-    action: z.literal("keyboardInputSingleKey"),
-    cssSelector: z.string(),
-    nth: z.number(),
-    key: z.string(),
-});
-
-export const scrollActionSchema = z.object({
-    action: z.literal("scroll"),
-    deltaX: z.number(),
-    deltaY: z.number(),
-});
-
-export const hardWaitActionSchema = z.object({
-    action: z.literal("hardWait"),
-    milliseconds: z.number(),
-});
-
-export const gotoURLActionSchema = z.object({
-    action: z.literal("gotoURL"),
-    url: z.string(),
-});
-
-export const markSpecAsCompleteActionSchema = z.object({
-    action: z.literal("markSpecAsComplete"),
-    reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
-    explanationWhySpecComplete: z.string(),
-});
-
-// Create a discriminated union of all action schemas
-export const actionSchema = z.discriminatedUnion("action", [
-    hoverOverActionSchema,
-    clickOnActionSchema,
-    doubleClickOnActionSchema,
-    keyboardInputStringActionSchema,
-    keyboardInputSingleKeyActionSchema,
-    scrollActionSchema,
-    hardWaitActionSchema,
-    gotoURLActionSchema,
-    markSpecAsCompleteActionSchema,
-]);
-
-export const actionStepSchema = z.object({
-    planningThoughtAboutTheActionIWillTake: z.string(),
-    action: actionSchema,
-});
-
 export const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
@@ -231,7 +151,7 @@ export const logger = winston.createLogger({
 type TestResult = {
     spec: string;
     status: "passed" | "failed";
-    actions: z.infer<typeof actionStepSchema>[];
+    actions: z.infer<typeof schemas.actionStepSchema>[];
     totalInputTokens: number;
     totalOutputTokens: number;
     reason?: string;
@@ -464,7 +384,7 @@ async function preventBrowserFromNavigatingToOtherHosts({
     testUrl,
 }: preventBrowserFromNavigatingToOtherHostsProps) {
     const hostOfTestUrl = new URL(testUrl).host;
-    await page.on("framenavigated", async (frame: Frame) => {
+    page.on("framenavigated", async (frame: Frame) => {
         const currentUrl = frame.url();
         const urlObject = new URL(currentUrl);
         if (urlObject.host !== hostOfTestUrl) {
@@ -655,7 +575,7 @@ export async function createTestPlan({
         promptTokens,
     } = await newCompletion({
         messages: conversationHistory,
-        schema: testPlanSchema,
+        schema: schemas.testPlanSchema,
         model,
     });
 
@@ -727,7 +647,7 @@ export async function runTestSpec({
             content: initialSystemPrompt,
         },
     ];
-    const actionsTaken: z.infer<typeof actionStepSchema>[] = [];
+    const actionsTaken: z.infer<typeof schemas.actionStepSchema>[] = [];
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
@@ -796,7 +716,7 @@ export async function runTestSpec({
                 promptTokens,
             } = await newCompletion({
                 messages: conversationHistory,
-                schema: actionStepSchema,
+                schema: schemas.actionStepSchema,
                 model,
             });
 
@@ -827,7 +747,9 @@ export async function runTestSpec({
                 });
             }
 
-            if (JSON.stringify(action).includes(magicStrings.specPassed)) {
+            if (
+                JSON.stringify(action).includes(schemas.magicStrings.specPassed)
+            ) {
                 specFulfilled = true;
                 testResults.push({
                     spec,
@@ -837,7 +759,7 @@ export async function runTestSpec({
                     totalOutputTokens,
                 });
             } else if (
-                JSON.stringify(action).includes(magicStrings.specFailed)
+                JSON.stringify(action).includes(schemas.magicStrings.specFailed)
             ) {
                 logger.info("Spec failed");
                 logger.info("Reasoning:");
@@ -875,7 +797,7 @@ export async function executeAction({
     action: { action, planningThoughtAboutTheActionIWillTake },
 }: {
     page: playwright.Page;
-    action: z.infer<typeof actionStepSchema>;
+    action: z.infer<typeof schemas.actionStepSchema>;
 }) {
     if (!action?.action) {
         console.error("No action provided", action);
