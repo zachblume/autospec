@@ -1,0 +1,17 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Generate code from actions > Should match existing code snapshot 1`] = `
+"import { test } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('http://google.com');
+});
+
+test("Should be able to Edit a TODO item", async ({ page }) => {
+  await page.dblclick('#todo-input');
+  await page.fill('#todo-input', 'Buy groceries');
+  await page.mouse.wheel(1200, 800);
+});
+
+"
+`;
