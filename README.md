@@ -2,7 +2,7 @@
 
 ### Open source end-to-end (e2e) test generation for web apps
 
-[Code Entrypoint](https://github.com/zachblume/autospec/blob/main/src/index.js)
+[Code Entrypoint](https://github.com/zachblume/autospec/blob/main/src/index.ts)
 
 Autospec is an end-to-end test/QA agent, using vision and text language models
 to explore and generate commonsense test specifications for web applications.
