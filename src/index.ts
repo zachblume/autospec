@@ -11,6 +11,8 @@ import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
 import winston from "winston";
 
+import * as schemas from "./schemas.js";
+
 declare global {
     interface Window {
         getMousePosition: () => { x: number; y: number }; // Adjust the type of 'pw' if it's more specific
@@ -18,11 +20,6 @@ declare global {
 }
 
 dotenv.config();
-
-export const magicStrings = {
-    specPassed: "The spec passed",
-    specFailed: "The spec failed",
-};
 
 export const initialSystemPrompt = `
 You are an automated QA agent tasked with testing a web application just as
@@ -77,7 +74,7 @@ instructions:
       rendered HTML of the page. You can use the HTML to cross-reference
       with the screenshot to make sure you are interacting with the correct
       elements.
-    - You always make up appropriate cssSelectors based on the HTML
+    - You always make up appropriate selectors based on the HTML
       snapshot, by relating the HTML snapshot to the screenshot you are
       provided, and then coming up with a valid css selector that you can
       use to interact with the element in question. You always use the nth
@@ -90,29 +87,7 @@ instructions:
       other attributes or structural relationships to form a unique
       selector.
 
-3. You have an API of actions you can take: type Action = { action: String;
-    cssSelector?: String; nth?: Number; string?: String; key?: String;
-    deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
-    String; explanationWhySpecComplete?: String;
-    }
-
-    The possible actions are:
-    [
-        { action:"hoverOver"; cssSelector: String; nth: Number },
-        { action:"clickOn", cssSelector: String; nth: Number },
-        { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
-        { action:"scroll"; deltaX:Number; deltaY:Number },
-        { action:"hardWait"; milliseconds: Number },
-        { action:"gotoURL"; url: String },
-        {
-            action:"markSpecAsComplete";
-            reason:
-                "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
-            explanationWhySpecComplete: String
-        },
-    ];
+3. You have an API of actions you can take:
 
     - If the screenshot already provided you enough information to answer
       this spec completely and say that the spec has passed, you will mark
@@ -140,83 +115,6 @@ instructions:
       or anything like that.
 `;
 
-export const testPlanSchema = z.object({
-    arrayOfSpecs: z.array(z.string()),
-});
-
-// Define schemas for each action type
-export const hoverOverActionSchema = z.object({
-    action: z.literal("hoverOver"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const clickOnActionSchema = z.object({
-    action: z.literal("clickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const doubleClickOnActionSchema = z.object({
-    action: z.literal("doubleClickOn"),
-    cssSelector: z.string(),
-    nth: z.number(),
-});
-
-export const keyboardInputStringActionSchema = z.object({
-    action: z.literal("keyboardInputString"),
-    cssSelector: z.string(),
-    nth: z.number(),
-    string: z.string(),
-});
-
-export const keyboardInputSingleKeyActionSchema = z.object({
-    action: z.literal("keyboardInputSingleKey"),
-    cssSelector: z.string(),
-    nth: z.number(),
-    key: z.string(),
-});
-
-export const scrollActionSchema = z.object({
-    action: z.literal("scroll"),
-    deltaX: z.number(),
-    deltaY: z.number(),
-});
-
-export const hardWaitActionSchema = z.object({
-    action: z.literal("hardWait"),
-    milliseconds: z.number(),
-});
-
-export const gotoURLActionSchema = z.object({
-    action: z.literal("gotoURL"),
-    url: z.string(),
-});
-
-export const markSpecAsCompleteActionSchema = z.object({
-    action: z.literal("markSpecAsComplete"),
-    reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
-    explanationWhySpecComplete: z.string(),
-});
-
-// Create a discriminated union of all action schemas
-export const actionSchema = z.discriminatedUnion("action", [
-    hoverOverActionSchema,
-    clickOnActionSchema,
-    doubleClickOnActionSchema,
-    keyboardInputStringActionSchema,
-    keyboardInputSingleKeyActionSchema,
-    scrollActionSchema,
-    hardWaitActionSchema,
-    gotoURLActionSchema,
-    markSpecAsCompleteActionSchema,
-]);
-
-export const actionStepSchema = z.object({
-    planningThoughtAboutTheActionIWillTake: z.string(),
-    action: actionSchema,
-});
-
 export const logger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
@@ -228,10 +126,10 @@ export const logger = winston.createLogger({
     transports: [new winston.transports.Console()],
 });
 
-type TestResult = {
+export type TestResult = {
     spec: string;
     status: "passed" | "failed";
-    actions: z.infer<typeof actionStepSchema>[];
+    actions: z.infer<typeof schemas.actionStepSchema>[];
     totalInputTokens: number;
     totalOutputTokens: number;
     reason?: string;
@@ -464,7 +362,7 @@ async function preventBrowserFromNavigatingToOtherHosts({
     testUrl,
 }: preventBrowserFromNavigatingToOtherHostsProps) {
     const hostOfTestUrl = new URL(testUrl).host;
-    await page.on("framenavigated", async (frame: Frame) => {
+    page.on("framenavigated", async (frame: Frame) => {
         const currentUrl = frame.url();
         const urlObject = new URL(currentUrl);
         if (urlObject.host !== hostOfTestUrl) {
@@ -655,7 +553,7 @@ export async function createTestPlan({
         promptTokens,
     } = await newCompletion({
         messages: conversationHistory,
-        schema: testPlanSchema,
+        schema: schemas.testPlanSchema,
         model,
     });
 
@@ -727,7 +625,7 @@ export async function runTestSpec({
             content: initialSystemPrompt,
         },
     ];
-    const actionsTaken: z.infer<typeof actionStepSchema>[] = [];
+    const actionsTaken: z.infer<typeof schemas.actionStepSchema>[] = [];
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
@@ -796,7 +694,7 @@ export async function runTestSpec({
                 promptTokens,
             } = await newCompletion({
                 messages: conversationHistory,
-                schema: actionStepSchema,
+                schema: schemas.actionStepSchema,
                 model,
             });
 
@@ -827,7 +725,9 @@ export async function runTestSpec({
                 });
             }
 
-            if (JSON.stringify(action).includes(magicStrings.specPassed)) {
+            if (
+                JSON.stringify(action).includes(schemas.magicStrings.specPassed)
+            ) {
                 specFulfilled = true;
                 testResults.push({
                     spec,
@@ -837,7 +737,7 @@ export async function runTestSpec({
                     totalOutputTokens,
                 });
             } else if (
-                JSON.stringify(action).includes(magicStrings.specFailed)
+                JSON.stringify(action).includes(schemas.magicStrings.specFailed)
             ) {
                 logger.info("Spec failed");
                 logger.info("Reasoning:");
@@ -875,7 +775,7 @@ export async function executeAction({
     action: { action, planningThoughtAboutTheActionIWillTake },
 }: {
     page: playwright.Page;
-    action: z.infer<typeof actionStepSchema>;
+    action: z.infer<typeof schemas.actionStepSchema>;
 }) {
     if (!action?.action) {
         console.error("No action provided", action);
@@ -888,29 +788,21 @@ export async function executeAction({
 
     try {
         switch (action.action) {
-            case "hoverOver":
-                await page.locator(action.cssSelector).nth(action.nth).hover();
+            case "hover":
+                await page.locator(action.selector).hover();
                 break;
-            case "clickOn":
-                await page.locator(action.cssSelector).nth(action.nth).click();
+            case "click":
+                if ((action.clickCount = 2)) {
+                    await page.locator(action.selector).dblclick();
+                } else {
+                    await page.locator(action.selector).click();
+                }
                 break;
-            case "doubleClickOn":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .dblclick();
+            case "fill":
+                await page.locator(action.selector).fill(action.text);
                 break;
-            case "keyboardInputString":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .fill(action.string);
-                break;
-            case "keyboardInputSingleKey":
-                await page
-                    .locator(action.cssSelector)
-                    .nth(action.nth)
-                    .press(action.key);
+            case "press":
+                await page.locator(action.selector).press(action.key);
                 break;
             case "scroll":
                 await page.mouse.wheel(action.deltaX, action.deltaY);
@@ -918,10 +810,10 @@ export async function executeAction({
             case "hardWait":
                 await page.waitForTimeout(action.milliseconds);
                 break;
-            case "gotoURL":
+            case "navigate":
                 await page.goto(action.url);
                 break;
-            case "markSpecAsComplete":
+            case "markAsComplete":
                 logger.info(`Spec marked as complete: ${action.reason}`);
                 break;
             default:
@@ -964,6 +856,56 @@ export async function saveScreenshotWithCursor({
     await img.composite([{ input: cursor, blend: "over" }]).toFile(path);
 }
 
+export function generateCode({ testResults, testUrl }): string {
+    let fileContent = `import { test } from '@playwright/test';\n\n`;
+
+    const successfulTests = testResults.filter(
+        (result) => result.status === "passed",
+    );
+
+    // Add a beforeEach test hook to goto the testurl
+    fileContent += `test.beforeEach(async ({ page }) => {\n`;
+    fileContent += `  await page.goto('${testUrl}');\n`;
+    fileContent += `});\n\n`;
+
+    successfulTests.forEach(({ spec, actions }) => {
+        fileContent += `test("${spec}", async ({ page }) => {\n`;
+
+        actions.forEach(({ action }) => {
+            switch (action.action) {
+                case "hover":
+                    fileContent += `  await page.hover('${action.selector}');\n`;
+                    break;
+                case "click":
+                    if (action.clickCount === 2) {
+                        fileContent += `  await page.dblclick('${action.selector}');\n`;
+                    } else {
+                        fileContent += `  await page.click('${action.selector}');\n`;
+                    }
+                    break;
+                case "fill":
+                    fileContent += `  await page.fill('${action.selector}', '${action.text}');\n`;
+                    break;
+                case "press":
+                    fileContent += `  await page.press('${action.selector}', '${action.key}');\n`;
+                    break;
+                case "scroll":
+                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
+                    break;
+                case "hardWait":
+                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
+                    break;
+                case "navigate":
+                    fileContent += `  await page.goto('${action.url}');\n`;
+                    break;
+            }
+        });
+        fileContent += `});\n\n`;
+    });
+
+    return fileContent;
+}
+
 export async function printTestResults({
     runId,
     testResults,
@@ -997,51 +939,16 @@ export async function printTestResults({
         });
     });
 
+    const fileContent = generateCode({
+        testResults,
+        testUrl,
+    });
     // Write the successful tests to a file
     const testFilePath = `${trajectoriesPath}/${runId}/successfulTests-${runId}.spec.js`;
-    let fileContent = `import { test } from '@playwright/test';\n\n`;
 
     const successfulTests = testResults.filter(
         (result) => result.status === "passed",
     );
-
-    // Add a beforeEach test hook to goto the testurl
-    fileContent += `test.beforeEach(async ({ page }) => {\n`;
-    fileContent += `  await page.goto('${testUrl}');\n`;
-    fileContent += `});\n\n`;
-
-    successfulTests.forEach(({ spec, actions }) => {
-        fileContent += `test("${spec}", async ({ page }) => {\n`;
-        actions.forEach(({ action }) => {
-            switch (action.action) {
-                case "hoverOver":
-                    fileContent += `  await page.hover('${action.cssSelector}');\n`;
-                    break;
-                case "clickOn":
-                    fileContent += `  await page.click('${action.cssSelector}');\n`;
-                    break;
-                case "doubleClickOn":
-                    fileContent += `  await page.dblclick('${action.cssSelector}');\n`;
-                    break;
-                case "keyboardInputString":
-                    fileContent += `  await page.fill('${action.cssSelector}', '${action.string}');\n`;
-                    break;
-                case "keyboardInputSingleKey":
-                    fileContent += `  await page.press('${action.cssSelector}', '${action.key}');\n`;
-                    break;
-                case "scroll":
-                    fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
-                    break;
-                case "hardWait":
-                    fileContent += `  await page.waitForTimeout(${action.milliseconds});\n`;
-                    break;
-                case "gotoURL":
-                    fileContent += `  await page.goto('${action.url}');\n`;
-                    break;
-            }
-        });
-        fileContent += `});\n\n`;
-    });
 
     fs.writeFileSync(testFilePath, fileContent, "utf-8");
     logger.info(`Successful tests written to ${testFilePath}`);
