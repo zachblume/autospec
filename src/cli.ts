@@ -88,14 +88,10 @@ const getVars = async () => {
     }
 };
 
-export const getVersion = () => {
-    return "0.0.17";
-};
-
 const run = async () => {
     // If --version or -v is passed, print the package version and exit.
     if (args.includes("--version") || args.includes("-v")) {
-        console.log(`autospec version ${getVersion()}`);
+        console.log(`autospec version 0.0.19`);
         process.exit(0);
     }
 
