@@ -11,7 +11,7 @@ import {
     getModelConfigs,
     ModelObjectType,
     newCompletion,
-} from "./ai";
+} from "./ai.js";
 
 declare global {
     interface Window {
