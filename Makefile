@@ -11,3 +11,12 @@ todomvc:
 
 bench:
 	npm run build && npm run benchmark	
+
+release:
+	npm run lint
+	npm run format
+	npm run test
+	npm run build
+	# prompt for otp via bash
+	@read -p "Enter OTP: " OTP; \
+	npm publish --otp=$$OTP

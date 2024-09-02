@@ -3,7 +3,7 @@
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
 import { input, select } from "@inquirer/prompts";
-export const version = "0.0.16";
+export const version = "0.0.20";
 
 const args = process.argv.slice(2);
 

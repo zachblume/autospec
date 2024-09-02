@@ -421,6 +421,7 @@ export async function main({
 
 type NewCompletionProps = {
     messages: CoreMessage[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schema: z.ZodSchema<any>;
     model: ReturnType<
         ReturnType<
@@ -673,7 +674,7 @@ export async function createTestPlan({
     return { testPlan: testPlanJson, completionTokens, promptTokens };
 }
 
-export function stringifyError(error: any) {
+export function stringifyError(error: unknown) {
     if (error instanceof Error) {
         return error.message + "\n" + error.stack;
     }

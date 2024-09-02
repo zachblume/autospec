@@ -11,6 +11,6 @@ export default tseslint.config(
         },
     },
     {
-        ignores: ["build", "benchmark/examples"],
+        ignores: ["build", "benchmark/examples", "trajectories"],
     },
 );

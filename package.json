@@ -1,6 +1,6 @@
 {
     "name": "autospecai",
-    "version": "0.0.16",
+    "version": "0.0.20",
     "description": "Open-source AI agent that autonomously QAs and generates E2E test specs for your web app",
     "bin": {
         "autospecai": "build/src/cli.js"
@@ -22,8 +22,8 @@
     "license": "MIT",
     "scripts": {
         "lint": "eslint . --fix",
-        "format": "npx prettier --write .",
-        "test": "npx vitest run ./unittests",
+        "format": "prettier --write .",
+        "test": "vitest run ./unittests",
         "build": "tsc -p ./tsconfig.json",
         "prebuild": "rm -rf ./build",
         "benchmark": "node ./build/benchmark/benchmark.js",
