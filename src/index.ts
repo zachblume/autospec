@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
-import winston from "winston";
+import winston, { Logger } from "winston";
 
 declare global {
     interface Window {
@@ -220,7 +220,7 @@ export const actionStepSchema = z.object({
     action: actionSchema,
 });
 
-export const logger = winston.createLogger({
+export const defaultLogger = winston.createLogger({
     level: "info",
     format: winston.format.combine(
         winston.format.timestamp(),
@@ -263,6 +263,7 @@ export async function main({
     browserPassThrough = undefined,
     recordVideo = true,
     shouldReuseExistingBrowserContext = false,
+    logger = defaultLogger,
 }: {
     testUrl?: string;
     modelName?: string;
@@ -274,6 +275,7 @@ export async function main({
     browserPassThrough?: Browser;
     recordVideo?: boolean;
     shouldReuseExistingBrowserContext?: boolean;
+    logger?: Logger;
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -360,6 +362,7 @@ export async function main({
         ...(browserPassThrough ? { browser: browserPassThrough } : {}),
         recordVideo,
         trajectoriesPath,
+        logger,
     });
 
     try {
@@ -382,6 +385,7 @@ export async function main({
             const { testPlan: generatedTestPlan } = await createTestPlan({
                 videoFrames,
                 model,
+                logger,
             });
             testPlan = generatedTestPlan;
         }
@@ -401,6 +405,7 @@ export async function main({
                 trajectoriesPath,
                 recordVideo,
                 shouldReuseExistingBrowserContext,
+                logger,
             }),
         );
 
@@ -428,11 +433,17 @@ export async function main({
             testResults,
             testUrl,
             trajectoriesPath,
+            logger,
         });
     }
 }
 
-type NewCompletionProps = {
+export async function newCompletion({
+    messages,
+    schema,
+    model,
+    logger,
+}: {
     messages: CoreMessage[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schema: z.ZodSchema<any>;
@@ -443,12 +454,8 @@ type NewCompletionProps = {
             | typeof createAnthropic
         >
     >;
-};
-export async function newCompletion({
-    messages,
-    schema,
-    model,
-}: NewCompletionProps): Promise<{
+    logger: Logger;
+}): Promise<{
     object: z.infer<typeof schema>;
     completionTokens: number;
     promptTokens: number;
@@ -503,6 +510,7 @@ export async function initializeBrowser({
     trajectoriesPath,
     recordVideo = true,
     shouldReuseExistingBrowserContext = false,
+    logger,
 }: {
     runId: string;
     testUrl: string;
@@ -511,6 +519,7 @@ export async function initializeBrowser({
     browser?: Browser;
     context?: BrowserContext;
     shouldReuseExistingBrowserContext?: boolean;
+    logger: Logger;
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
@@ -641,6 +650,7 @@ export async function getVideoFrames({
 export async function createTestPlan({
     videoFrames,
     model,
+    logger,
 }: {
     videoFrames: { type: "image"; image: Buffer }[];
     model: ReturnType<
@@ -648,6 +658,7 @@ export async function createTestPlan({
         | ReturnType<typeof createOpenAI>
         | ReturnType<typeof createAnthropic>
     >;
+    logger: Logger;
 }) {
     const conversationHistory: CoreMessage[] = [
         {
@@ -674,6 +685,7 @@ export async function createTestPlan({
         messages: conversationHistory,
         schema: testPlanSchema,
         model,
+        logger,
     });
 
     const testPlanJson = testPlan?.arrayOfSpecs;
@@ -712,6 +724,7 @@ export async function runTestSpec({
     trajectoriesPath,
     recordVideo = true,
     shouldReuseExistingBrowserContext = false,
+    logger,
 }: {
     runId: string;
     spec: string;
@@ -728,6 +741,7 @@ export async function runTestSpec({
     trajectoriesPath: string;
     recordVideo?: boolean;
     shouldReuseExistingBrowserContext?: boolean;
+    logger: Logger;
 }) {
     const { page } = await initializeBrowser({
         runId,
@@ -737,6 +751,7 @@ export async function runTestSpec({
         trajectoriesPath,
         recordVideo,
         shouldReuseExistingBrowserContext,
+        logger,
     });
 
     let specFulfilled = false;
@@ -818,6 +833,7 @@ export async function runTestSpec({
                 messages: conversationHistory,
                 schema: actionStepSchema,
                 model,
+                logger,
             });
 
             totalInputTokens += promptTokens;
@@ -829,7 +845,7 @@ export async function runTestSpec({
             });
 
             actionsTaken.push(action);
-            const result = await executeAction({ page, action });
+            const result = await executeAction({ page, action, logger });
             if (result?.error) {
                 conversationHistory.push({
                     role: "user",
@@ -893,9 +909,11 @@ export async function runTestSpec({
 export async function executeAction({
     page,
     action: { action, planningThoughtAboutTheActionIWillTake },
+    logger,
 }: {
     page: playwright.Page;
     action: z.infer<typeof actionStepSchema>;
+    logger: Logger;
 }) {
     if (!action?.actionName) {
         console.error("No action provided", action);
@@ -989,11 +1007,13 @@ export async function printTestResults({
     testResults,
     testUrl,
     trajectoriesPath,
+    logger,
 }: {
     runId: string;
     testResults: TestResult[];
     testUrl: string;
     trajectoriesPath: string;
+    logger: Logger;
 }) {
     logger.info("\n\n");
     logger.info(chalk.bold("Test Summary:"));

@@ -2,6 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { actionStepSchema, newCompletion } from "../src/index";
 import { vi, beforeEach, describe, Mock, test, expect } from "vitest";
+import winston from "winston";
 
 vi.mock("@ai-sdk/openai", () => ({
     createOpenAI: vi.fn(() => ({})),
@@ -27,6 +28,7 @@ describe("Stub test to make sure jest mocking is setup correctly", () => {
             messages: [],
             schema: actionStepSchema,
             model,
+            logger: winston.createLogger(),
         });
         expect(result).toEqual(whatWeExpect);
     });
