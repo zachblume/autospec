@@ -1,8 +1,4 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
 import sharp from "sharp";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { CoreMessage, generateObject } from "ai";
 import { z } from "zod";
 import chalk from "chalk";
 import dotenv from "dotenv";
@@ -10,6 +6,12 @@ import fs from "fs";
 import playwright, { Browser, BrowserContext, Frame } from "playwright";
 import stripAnsi from "strip-ansi";
 import winston, { Logger } from "winston";
+import {
+    CoreMessage,
+    getModelConfigs,
+    ModelObjectType,
+    newCompletion,
+} from "./ai";
 
 declare global {
     interface Window {
@@ -340,20 +342,7 @@ export async function main({
         }
     }
 
-    const modelConfigs = {
-        "gemini-1.5-flash-latest": createGoogleGenerativeAI({
-            apiKey: apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-        })("models/gemini-1.5-flash-latest"),
-        "gpt-4o": createOpenAI({
-            apiKey: apiKey || process.env.OPENAI_API_KEY,
-        })("gpt-4o"),
-        "gpt-4o-mini": createOpenAI({
-            apiKey: apiKey || process.env.OPENAI_API_KEY,
-        })("gpt-4o-mini"),
-        "claude-3-haiku": createAnthropic({
-            apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
-        })("claude-3-haiku-20240307"),
-    };
+    const modelConfigs = getModelConfigs({ apiKey });
     const model = modelConfigs[modelName];
 
     const { browser, context, page } = await initializeBrowser({
@@ -438,44 +427,6 @@ export async function main({
     }
 }
 
-export async function newCompletion({
-    messages,
-    schema,
-    model,
-    logger,
-}: {
-    messages: CoreMessage[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    schema: z.ZodSchema<any>;
-    model: ReturnType<
-        ReturnType<
-            | typeof createGoogleGenerativeAI
-            | typeof createOpenAI
-            | typeof createAnthropic
-        >
-    >;
-    logger: Logger;
-}): Promise<{
-    object: z.infer<typeof schema>;
-    completionTokens: number;
-    promptTokens: number;
-}> {
-    const { object, usage } = await generateObject<typeof schema>({
-        model,
-        messages,
-        temperature: 0.0,
-        maxRetries: 5,
-        maxTokens: 1000,
-        seed: 0,
-        schema,
-    });
-
-    logger.info(JSON.stringify(object, null, 4));
-
-    const { completionTokens, promptTokens } = usage;
-    return { object, completionTokens, promptTokens };
-}
-
 type preventBrowserFromNavigatingToOtherHostsProps = {
     page: playwright.Page;
     testUrl: string;
@@ -494,9 +445,9 @@ async function preventBrowserFromNavigatingToOtherHosts({
             });
             throw new Error(
                 `Navigation to ${currentUrl} was stopped because that URL is
-                not on the same host as the test URL, ${testUrl}. Use the
-                gotoURL action to navigate back to the previous URL and
-                recover from this failure state.`,
+              not on the same host as the test URL, ${testUrl}. Use the
+              gotoURL action to navigate back to the previous URL and
+              recover from this failure state.`,
             );
         }
     });
@@ -653,11 +604,7 @@ export async function createTestPlan({
     logger,
 }: {
     videoFrames: { type: "image"; image: Buffer }[];
-    model: ReturnType<
-        | ReturnType<typeof createGoogleGenerativeAI>
-        | ReturnType<typeof createOpenAI>
-        | ReturnType<typeof createAnthropic>
-    >;
+    model: ModelObjectType;
     logger: Logger;
 }) {
     const conversationHistory: CoreMessage[] = [
@@ -732,11 +679,7 @@ export async function runTestSpec({
     context: BrowserContext;
     maxIterations?: number;
     specId: number;
-    model: ReturnType<
-        | ReturnType<typeof createGoogleGenerativeAI>
-        | ReturnType<typeof createOpenAI>
-        | ReturnType<typeof createAnthropic>
-    >;
+    model: ModelObjectType;
     testUrl: string;
     trajectoriesPath: string;
     recordVideo?: boolean;
