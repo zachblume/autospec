@@ -1,10 +1,13 @@
-// The version specified in cli.ts::version should be the same as package.json
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
-describe("Version in CLI", () => {
+describe("Running CLI with --version", () => {
     it("matches package.json", async () => {
         const packageJson = await import("../package.json");
         const cli = await import("../src/cli");
-        expect(cli.version).toBe(packageJson.version);
+
+        const cliVersion = cli.getVersion();
+        const packageVersion = packageJson.version;
+
+        expect(cliVersion).toBe(packageVersion);
     });
 });

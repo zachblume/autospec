@@ -3,7 +3,6 @@
 // This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
 import { input, select } from "@inquirer/prompts";
-export const version = "0.0.17";
 
 const args = process.argv.slice(2);
 
@@ -89,10 +88,14 @@ const getVars = async () => {
     }
 };
 
+export const getVersion = () => {
+    return "0.0.17";
+};
+
 const run = async () => {
     // If --version or -v is passed, print the package version and exit.
     if (args.includes("--version") || args.includes("-v")) {
-        console.log(`autospec version ${version}`);
+        console.log(`autospec version ${getVersion()}`);
         process.exit(0);
     }
 
