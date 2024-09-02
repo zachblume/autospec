@@ -244,6 +244,7 @@ export const testResults: TestResult[] = [];
 
 export const modelNameSchema = z.enum([
     "gpt-4o",
+    "gpt-4o-mini",
     "gemini-1.5-flash-latest",
     "claude-3-haiku",
 ]);
@@ -317,6 +318,9 @@ export async function main({
         if (modelName === "gpt-4o" && !process.env.OPENAI_API_KEY) {
             errorMsg({ modelName: "GPT-4o", keyName: "OPENAI_API_KEY" });
         }
+        if (modelName === "gpt-4o-mini" && !process.env.OPENAI_API_KEY) {
+            errorMsg({ modelName: "GPT-4o", keyName: "OPENAI_API_KEY" });
+        }
         if (
             modelName === "gemini-1.5-flash-latest" &&
             !process.env.GOOGLE_GENERATIVE_AI_API_KEY
@@ -341,6 +345,9 @@ export async function main({
         "gpt-4o": createOpenAI({
             apiKey: apiKey || process.env.OPENAI_API_KEY,
         })("gpt-4o"),
+        "gpt-4o-mini": createOpenAI({
+            apiKey: apiKey || process.env.OPENAI_API_KEY,
+        })("gpt-4o-mini"),
         "claude-3-haiku": createAnthropic({
             apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
         })("claude-3-haiku-20240307"),
