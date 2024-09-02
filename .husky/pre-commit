@@ -2,6 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 npm install
-npx lint-staged
+npm run lint
 npm run test
-npx prettier --write .
+npm run format
