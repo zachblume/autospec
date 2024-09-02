@@ -258,6 +258,7 @@ export async function main({
     trajectoriesPath = "./trajectories",
     browserPassThrough = undefined,
     recordVideo = true,
+    shouldReuseExistingBrowserContext = false,
 }: {
     testUrl?: string;
     modelName?: string;
@@ -268,6 +269,7 @@ export async function main({
     trajectoriesPath?: string;
     browserPassThrough?: Browser;
     recordVideo?: boolean;
+    shouldReuseExistingBrowserContext?: boolean;
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -388,6 +390,7 @@ export async function main({
                 testUrl,
                 trajectoriesPath,
                 recordVideo,
+                shouldReuseExistingBrowserContext,
             }),
         );
 
@@ -489,6 +492,7 @@ export async function initializeBrowser({
     testUrl,
     trajectoriesPath,
     recordVideo = true,
+    shouldReuseExistingBrowserContext = false,
 }: {
     runId: string;
     testUrl: string;
@@ -496,37 +500,39 @@ export async function initializeBrowser({
     recordVideo: boolean;
     browser?: Browser;
     context?: BrowserContext;
+    shouldReuseExistingBrowserContext?: boolean;
 }) {
     const browser =
         browserPassedThrough || (await playwright.chromium.launch());
     const context =
-        contextPassedThrough ||
-        (await browser.newContext({
-            viewport: {
-                height: 1024,
-                width: 1024,
-            },
-            screen: {
-                height: 1024,
-                width: 1024,
-            },
-            ...(recordVideo === true
-                ? {
-                      recordVideo: {
-                          dir: `${trajectoriesPath}/${runId}`,
-                          size: { width: 1024, height: 1024 },
-                      },
-                  }
-                : {}),
-            logger: {
-                // isEnabled: (name, severity) => true,
-                isEnabled: () => true,
-                log: (name, severity, message) =>
-                    logger.info(
-                        `Playwright - ${message} [${name}] [${severity}]`,
-                    ),
-            },
-        }));
+        shouldReuseExistingBrowserContext && contextPassedThrough
+            ? contextPassedThrough
+            : await browser.newContext({
+                  viewport: {
+                      height: 1024,
+                      width: 1024,
+                  },
+                  screen: {
+                      height: 1024,
+                      width: 1024,
+                  },
+                  ...(recordVideo === true
+                      ? {
+                            recordVideo: {
+                                dir: `${trajectoriesPath}/${runId}`,
+                                size: { width: 1024, height: 1024 },
+                            },
+                        }
+                      : {}),
+                  logger: {
+                      // isEnabled: (name, severity) => true,
+                      isEnabled: () => true,
+                      log: (name, severity, message) =>
+                          logger.info(
+                              `Playwright - ${message} [${name}] [${severity}]`,
+                          ),
+                  },
+              });
     context.setDefaultTimeout(2500);
     const page = await context.newPage();
 
@@ -695,6 +701,7 @@ export async function runTestSpec({
     testUrl,
     trajectoriesPath,
     recordVideo = true,
+    shouldReuseExistingBrowserContext = false,
 }: {
     runId: string;
     spec: string;
@@ -710,6 +717,7 @@ export async function runTestSpec({
     testUrl: string;
     trajectoriesPath: string;
     recordVideo?: boolean;
+    shouldReuseExistingBrowserContext?: boolean;
 }) {
     const { page } = await initializeBrowser({
         runId,
@@ -718,6 +726,7 @@ export async function runTestSpec({
         testUrl,
         trajectoriesPath,
         recordVideo,
+        shouldReuseExistingBrowserContext,
     });
 
     let specFulfilled = false;
