@@ -25,7 +25,6 @@
         "format": "prettier --write .",
         "test": "vitest run ./unittests",
         "build": "tsc -p ./tsconfig.json",
-        "prebuild": "rm -rf ./build",
         "benchmark": "node ./build/benchmark/benchmark.js",
         "tsc": "tsc -p ./tsconfig.json --noEmit"
     },
