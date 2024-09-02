@@ -90,7 +90,7 @@ instructions:
       other attributes or structural relationships to form a unique
       selector.
 
-3. You have an API of actions you can take: type Action = { action: String;
+3. You have an API of actions you can take: type Action = { actionName: String;
     cssSelector?: String; nth?: Number; string?: String; key?: String;
     deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
     String; explanationWhySpecComplete?: String;
@@ -98,16 +98,16 @@ instructions:
 
     The possible actions are:
     [
-        { action:"hoverOver"; cssSelector: String; nth: Number },
-        { action:"clickOn", cssSelector: String; nth: Number },
-        { action:"doubleClickOn"; cssSelector: String; nth: Number },
-        { action:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
-        { action:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
-        { action:"scroll"; deltaX:Number; deltaY:Number },
-        { action:"hardWait"; milliseconds: Number },
-        { action:"gotoURL"; url: String },
+        { actionName:"hoverOver"; cssSelector: String; nth: Number },
+        { actionName:"clickOn", cssSelector: String; nth: Number },
+        { actionName:"doubleClickOn"; cssSelector: String; nth: Number },
+        { actionName:"keyboardInputString"; cssSelector: String; nth: Number; string:String },
+        { actionName:"keyboardInputSingleKey"; cssSelector: String; nth: Number; key:String },
+        { actionName:"scroll"; deltaX:Number; deltaY:Number },
+        { actionName:"hardWait"; milliseconds: Number },
+        { actionName:"gotoURL"; url: String },
         {
-            action:"markSpecAsComplete";
+            actionName:"markSpecAsComplete";
             reason:
                 "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
             explanationWhySpecComplete: String
@@ -138,6 +138,9 @@ instructions:
       will take and nothing else. You respond with the JSON object only,
       without prefixes or suffixes. You never prefix it with backticks or \`
       or anything like that.
+
+Before following the steps outlined above as 1-3, think carefully about which
+step you're on.
 `;
 
 export const testPlanSchema = z.object({
@@ -146,61 +149,61 @@ export const testPlanSchema = z.object({
 
 // Define schemas for each action type
 export const hoverOverActionSchema = z.object({
-    action: z.literal("hoverOver"),
+    actionName: z.literal("hoverOver"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
 export const clickOnActionSchema = z.object({
-    action: z.literal("clickOn"),
+    actionName: z.literal("clickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
 export const doubleClickOnActionSchema = z.object({
-    action: z.literal("doubleClickOn"),
+    actionName: z.literal("doubleClickOn"),
     cssSelector: z.string(),
     nth: z.number(),
 });
 
 export const keyboardInputStringActionSchema = z.object({
-    action: z.literal("keyboardInputString"),
+    actionName: z.literal("keyboardInputString"),
     cssSelector: z.string(),
     nth: z.number(),
     string: z.string(),
 });
 
 export const keyboardInputSingleKeyActionSchema = z.object({
-    action: z.literal("keyboardInputSingleKey"),
+    actionName: z.literal("keyboardInputSingleKey"),
     cssSelector: z.string(),
     nth: z.number(),
     key: z.string(),
 });
 
 export const scrollActionSchema = z.object({
-    action: z.literal("scroll"),
+    actionName: z.literal("scroll"),
     deltaX: z.number(),
     deltaY: z.number(),
 });
 
 export const hardWaitActionSchema = z.object({
-    action: z.literal("hardWait"),
+    actionName: z.literal("hardWait"),
     milliseconds: z.number(),
 });
 
 export const gotoURLActionSchema = z.object({
-    action: z.literal("gotoURL"),
+    actionName: z.literal("gotoURL"),
     url: z.string(),
 });
 
 export const markSpecAsCompleteActionSchema = z.object({
-    action: z.literal("markSpecAsComplete"),
+    actionName: z.literal("markSpecAsComplete"),
     reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
     explanationWhySpecComplete: z.string(),
 });
 
 // Create a discriminated union of all action schemas
-export const actionSchema = z.discriminatedUnion("action", [
+export const actionSchema = z.discriminatedUnion("actionName", [
     hoverOverActionSchema,
     clickOnActionSchema,
     doubleClickOnActionSchema,
@@ -407,7 +410,7 @@ export async function main({
         );
         return { testResults, totalInputTokens, totalOutputTokens };
     } catch (e) {
-        logger.error("Test error", e);
+        logger.error("Error encountered while running spec", e);
         console.error(e);
         return { testResults };
     } finally {
@@ -887,7 +890,7 @@ export async function executeAction({
     page: playwright.Page;
     action: z.infer<typeof actionStepSchema>;
 }) {
-    if (!action?.action) {
+    if (!action?.actionName) {
         console.error("No action provided", action);
         console.error(
             "planningThoughtAboutTheActionIWillTake",
@@ -897,7 +900,7 @@ export async function executeAction({
     }
 
     try {
-        switch (action.action) {
+        switch (action.actionName) {
             case "hoverOver":
                 await page.locator(action.cssSelector).nth(action.nth).hover();
                 break;
@@ -1023,7 +1026,7 @@ export async function printTestResults({
     successfulTests.forEach(({ spec, actions }) => {
         fileContent += `test("${spec}", async ({ page }) => {\n`;
         actions.forEach(({ action }) => {
-            switch (action.action) {
+            switch (action.actionName) {
                 case "hoverOver":
                     fileContent += `  await page.hover('${action.cssSelector}');\n`;
                     break;
