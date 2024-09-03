@@ -23,7 +23,8 @@
     "scripts": {
         "lint": "eslint . --fix",
         "format": "prettier --write .",
-        "test": "vitest run ./unittests",
+        "test": "vitest run ./ --silent --config ./vitest.config.ts",
+        "test:watch": "vitest ./ --config ./vitest.config.ts",
         "build": "tsc -p ./tsconfig.json",
         "benchmark": "node ./build/benchmark/benchmark.js",
         "tsc": "tsc -p ./tsconfig.json --noEmit"

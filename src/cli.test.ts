@@ -1,9 +1,9 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-import { actionStepSchema } from "../src/index";
-import { vi, beforeEach, describe, Mock, test, expect } from "vitest";
+import { actionStepSchema } from "./index";
+import { vi, beforeEach, describe, Mock, expect, it } from "vitest";
 import winston from "winston";
-import { newCompletion } from "../src/ai";
+import { newCompletion } from "./ai";
 
 vi.mock("@ai-sdk/openai", () => ({
     createOpenAI: vi.fn(() => ({})),
@@ -16,7 +16,7 @@ beforeEach(() => {
 });
 
 describe("Stub test to make sure jest mocking is setup correctly", () => {
-    test("newCompletion relies on the mockGenerateObject function", async () => {
+    it("newCompletion relies on the mockGenerateObject function", async () => {
         const whatWeExpect = { arrayOfSpecs: ["spec1", "spec23"] };
         (generateObject as Mock).mockResolvedValue({
             object: whatWeExpect,
@@ -32,5 +32,13 @@ describe("Stub test to make sure jest mocking is setup correctly", () => {
             logger: winston.createLogger(),
         });
         expect(result).toEqual(whatWeExpect);
+    });
+});
+
+describe("Version in CLI", () => {
+    it("matches package.json", async () => {
+        const packageJson = await import("../package.json");
+        const cli = await import("./cli");
+        expect(cli.version).toBe(packageJson.version);
     });
 });
