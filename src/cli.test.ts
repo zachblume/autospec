@@ -15,7 +15,7 @@ beforeEach(() => {
     (createOpenAI as Mock).mockReturnValue(() => ({}));
 });
 
-describe("Stub test to make sure jest mocking is setup correctly", () => {
+describe("Stub test to make sure vitest mocking is setup correctly", () => {
     it("newCompletion relies on the mockGenerateObject function", async () => {
         const whatWeExpect = { arrayOfSpecs: ["spec1", "spec23"] };
         (generateObject as Mock).mockResolvedValue({
