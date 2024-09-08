@@ -15,7 +15,7 @@ import {
 
 declare global {
     interface Window {
-        getMousePosition: () => { x: number; y: number }; // Adjust the type of 'pw' if it's more specific
+        getMousePosition: () => { x: number; y: number };
     }
 }
 
