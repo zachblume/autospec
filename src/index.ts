@@ -95,7 +95,7 @@ instructions:
 3. You have an API of actions you can take: type Action = { actionName: String;
     cssSelector?: String; nth?: Number; string?: String; key?: String;
     deltaX?: Number; deltaY?: Number; milliseconds?: Number; reason?:
-    String; explanationWhySpecComplete?: String;
+    String; explanationWhySpecFailed?: String;
     }
 
     The possible actions are:
@@ -109,19 +109,19 @@ instructions:
         { actionName:"hardWait"; milliseconds: Number },
         { actionName:"gotoURL"; url: String },
         {
-            actionName:"markSpecAsComplete";
-            reason:
-                "${magicStrings.specPassed}" | "${magicStrings.specFailed}";
-            explanationWhySpecComplete: String
+            actionName:"awaitLocatedElementForState"; cssSelector: String; state: "attached" | "detached" | "visible" | "hidden"; timeout?: Number, thisSpecIsCompleteIfThisPasses?: "${magicStrings.specPassed}" | undefined; nth: Number},
+        {
+            actionName:"markSpecAsFailed";
+            judgement: "${magicStrings.specFailed}";
+            explanationWhySpecFailed: String
         },
     ];
 
-    - If the screenshot already provided you enough information to answer
-      this spec completely and say that the spec has passed, you will mark
-      the spec as complete with appropriate API call and reason.
+    - The last step of a spec must be a call to awaitLocatedElementForState
+      in order to prove the desired end state that the spec called for.
     - If the screenshot already provided you enough information to answer
       this spec completely and say that the spec has failed in your
-      judgement, you will mark the spec as complete with appropriate API
+      judgement, you will mark the spec as failed with appropriate API
       call and reason.
     - You only make one API request on this turn.
     - You only name an action type that was enumerated above.
@@ -198,10 +198,21 @@ export const gotoURLActionSchema = z.object({
     url: z.string(),
 });
 
-export const markSpecAsCompleteActionSchema = z.object({
-    actionName: z.literal("markSpecAsComplete"),
-    reason: z.enum([magicStrings.specPassed, magicStrings.specFailed]),
-    explanationWhySpecComplete: z.string(),
+export const markSpecAsFailedActionSchema = z.object({
+    actionName: z.literal("markSpecAsFailed"),
+    reason: z.enum([magicStrings.specFailed]),
+    explanationWhySpecFailed: z.string(),
+});
+
+export const awaitLocatedElementForStateActionSchema = z.object({
+    actionName: z.literal("awaitLocatedElementForState"),
+    cssSelector: z.string(),
+    state: z.enum(["attached", "detached", "visible", "hidden"]),
+    timeout: z.number().optional(),
+    nth: z.number(),
+    thisSpecIsCompleteIfThisPasses: z
+        .enum([magicStrings.specPassed])
+        .optional(),
 });
 
 // Create a discriminated union of all action schemas
@@ -214,7 +225,8 @@ export const actionSchema = z.discriminatedUnion("actionName", [
     scrollActionSchema,
     hardWaitActionSchema,
     gotoURLActionSchema,
-    markSpecAsCompleteActionSchema,
+    markSpecAsFailedActionSchema,
+    awaitLocatedElementForStateActionSchema,
 ]);
 
 export const actionStepSchema = z.object({
@@ -400,7 +412,7 @@ export async function main({
 
         await Promise.all(testPromises);
 
-        logger.info("Test complete");
+        logger.info("All specs complete");
         const totalInputTokens = testResults.reduce(
             (sum, result) => sum + (result.totalInputTokens || 0),
             0,
@@ -820,11 +832,11 @@ export async function runTestSpec({
             ) {
                 logger.info("Spec failed");
                 logger.info("Reasoning:");
-                logger.info(action?.action?.explanationWhySpecComplete);
+                logger.info(action?.action?.explanationWhySpecFailed);
                 testResults.push({
                     spec,
                     status: "failed",
-                    reason: action?.action?.explanationWhySpecComplete,
+                    reason: action?.action?.explanationWhySpecFailed,
                     actions: actionsTaken,
                     totalInputTokens,
                     totalOutputTokens,
@@ -902,8 +914,14 @@ export async function executeAction({
             case "gotoURL":
                 await page.goto(action.url);
                 break;
-            case "markSpecAsComplete":
-                logger.info(`Spec marked as complete: ${action.reason}`);
+            case "markSpecAsFailed":
+                logger.info(`Spec marked as failed`);
+                break;
+            case "awaitLocatedElementForState":
+                await page.locator(action.cssSelector).nth(action.nth).waitFor({
+                    state: action.state,
+                    timeout: action.timeout,
+                });
                 break;
             default:
                 throw new Error(`Unknown action: ${JSON.stringify(action)}`);
@@ -998,19 +1016,19 @@ export async function printTestResults({
         actions.forEach(({ action }) => {
             switch (action.actionName) {
                 case "hoverOver":
-                    fileContent += `  await page.hover('${action.cssSelector}');\n`;
+                    fileContent += `  await page.hover("${action.cssSelector}");\n`;
                     break;
                 case "clickOn":
-                    fileContent += `  await page.click('${action.cssSelector}');\n`;
+                    fileContent += `  await page.click("${action.cssSelector}");\n`;
                     break;
                 case "doubleClickOn":
-                    fileContent += `  await page.dblclick('${action.cssSelector}');\n`;
+                    fileContent += `  await page.dblclick("${action.cssSelector}");\n`;
                     break;
                 case "keyboardInputString":
-                    fileContent += `  await page.fill('${action.cssSelector}', '${action.string}');\n`;
+                    fileContent += `  await page.fill("${action.cssSelector}", '${action.string}');\n`;
                     break;
                 case "keyboardInputSingleKey":
-                    fileContent += `  await page.press('${action.cssSelector}', '${action.key}');\n`;
+                    fileContent += `  await page.press("${action.cssSelector}", '${action.key}');\n`;
                     break;
                 case "scroll":
                     fileContent += `  await page.mouse.wheel(${action.deltaX}, ${action.deltaY});\n`;
@@ -1020,6 +1038,9 @@ export async function printTestResults({
                     break;
                 case "gotoURL":
                     fileContent += `  await page.goto('${action.url}');\n`;
+                    break;
+                case "awaitLocatedElementForState":
+                    fileContent += `  await page.locator("${action.cssSelector}").waitFor({ state: '${action.state}' });\n`;
                     break;
             }
         });
