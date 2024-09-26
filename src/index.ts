@@ -266,6 +266,7 @@ export async function main({
     recordVideo = true,
     shouldReuseExistingBrowserContext = false,
     logger = defaultLogger,
+    bail = false,
 }: {
     testUrl?: string;
     modelName?: string;
@@ -278,6 +279,7 @@ export async function main({
     recordVideo?: boolean;
     shouldReuseExistingBrowserContext?: boolean;
     logger?: Logger;
+    bail?: boolean;
 } = {}) {
     const runId =
         new Date().toISOString().replace(/[^0-9]/g, "") +
@@ -395,6 +397,7 @@ export async function main({
                 recordVideo,
                 shouldReuseExistingBrowserContext,
                 logger,
+                bail,
             }),
         );
 
@@ -672,6 +675,7 @@ export async function runTestSpec({
     recordVideo = true,
     shouldReuseExistingBrowserContext = false,
     logger,
+    bail = false,
 }: {
     runId: string;
     spec: string;
@@ -685,6 +689,7 @@ export async function runTestSpec({
     recordVideo?: boolean;
     shouldReuseExistingBrowserContext?: boolean;
     logger: Logger;
+    bail?: boolean;
 }) {
     const { page } = await initializeBrowser({
         runId,
@@ -830,6 +835,9 @@ export async function runTestSpec({
                     totalOutputTokens,
                 });
                 specFulfilled = true;
+                if (bail) {
+                    break;
+                }
             }
         }
 
