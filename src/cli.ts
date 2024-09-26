@@ -14,7 +14,7 @@ const getArgValue = <T>(argName: string, defaultValue: T) => {
 
 if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--specFile <file>] [--help | -h]
+        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--specFile <file>] [--bail] [--help | -h]
 
         Required:
         --url <url>          The target URL to run the autospec tests against.
@@ -35,6 +35,7 @@ if (args.includes("--help") || args.includes("-h")) {
                                 * ANTHROPIC_API_KEY
         --specFile <file>    Path to the file containing specs to run.
                              Use "-" to read from stdin.
+        --bail               Stop on first test failure.
     `);
     process.exit(0);
 }
@@ -65,12 +66,22 @@ const getInteractiveInput = async () => {
         message: "Enter the spec file path (or leave blank):",
     });
 
+    const bail = await select({
+        message: "Stop on first test failure?",
+        choices: [
+            { name: "Yes", value: true },
+            { name: "No", value: false },
+        ],
+        default: false,
+    });
+
     return {
         testUrl,
         modelName,
         specLimit: parseInt(specLimit, 10) || 10,
         apiKey,
         specFile: specFile || undefined,
+        bail,
     };
 };
 
@@ -85,6 +96,7 @@ const getVars = async () => {
             specLimit: getArgValue<string | number>("--spec_limit", 10),
             apiKey: getArgValue<string | undefined>("--apikey", undefined),
             specFile: getArgValue<string | undefined>("--specFile", undefined),
+            bail: getArgValue<boolean>("--bail", false),
         };
     }
 };
@@ -96,7 +108,7 @@ const run = async () => {
         process.exit(0);
     }
 
-    const { testUrl, modelName, specLimit, apiKey, specFile } = await getVars();
+    const { testUrl, modelName, specLimit, apiKey, specFile, bail } = await getVars();
     if (!apiKey) {
         console.warn(
             "Warning: No API key provided. Falling back to environment variables.",
@@ -109,6 +121,7 @@ const run = async () => {
             typeof specLimit == "string" ? parseInt(specLimit) : specLimit,
         apiKey,
         specFile,
+        bail,
     });
     process.exit(
         testResults.every((result) => result.status === "passed") ? 0 : 1,
