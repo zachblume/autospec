@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// CLI entry point for the autospec package.
-// This script configures and runs the autospec tool via command-line arguments.
 import { main } from "./index.js";
 import { input, select } from "@inquirer/prompts";
-export const version = "0.0.21";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json");
 
 const args = process.argv.slice(2);
 
@@ -14,33 +15,32 @@ const getArgValue = <T>(argName: string, defaultValue: T) => {
 
 if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-        Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--specFile <file>] [--help | -h]
+    Usage: npx autospecai --url <url> [--model <model>] [--spec_limit <limit>] [--specFile <file>] [--help | -h]
 
-        Required:
-        --url <url>          The target URL to run the autospec tests against.
-        
-        Optional:
-        --help, -h           Show this help message.
-        --spec_limit <limit> The max number of specs to generate. Default 10.
-        --model <model>      The model to use for spec generation
-                              * "gpt-4o" (default)
-                              * "gemini-1.5-flash-latest"
-                              * "claude-3-haiku"
-                              * (note: Gemini flash is free up to rate limits)
-        --apikey <key>       The relevant API key for the chosen model's API.
-                              * If not specified, we'll fall back on the
-                                following environment variables:
-                                * OPENAI_API_KEY
-                                * GOOGLE_GENERATIVE_AI_API_KEY
-                                * ANTHROPIC_API_KEY
-        --specFile <file>    Path to the file containing specs to run.
-                             Use "-" to read from stdin.
+    Required:
+    --url <url>          The target URL to run the autospec tests against.
+
+    Optional:
+    --help, -h           Show this help message.
+    --spec_limit <limit> The max number of specs to generate. Default 10.
+    --model <model>      The model to use for spec generation
+                          * "claude-opus-4-6" (default)
+                          * "gpt-5.4"
+                          * "gemini-2.5-flash"
+    --apikey <key>       The relevant API key for the chosen model's API.
+                          * If not specified, we'll fall back on the
+                            following environment variables:
+                            * OPENAI_API_KEY
+                            * GOOGLE_GENERATIVE_AI_API_KEY
+                            * ANTHROPIC_API_KEY
+    --specFile <file>    Path to the file containing specs to run.
+                         Use "-" to read from stdin.
     `);
     process.exit(0);
 }
 
 const getInteractiveInput = async () => {
-    const models = ["gpt-4o", "gemini-1.5-flash-latest", "claude-3-haiku"];
+    const models = ["claude-opus-4-6", "gpt-5.4", "gemini-2.5-flash"];
 
     const testUrl = await input({
         message: "Enter the target URL:",
@@ -81,7 +81,10 @@ const getVars = async () => {
     } else {
         return {
             testUrl: getArgValue<string | undefined>("--url", undefined),
-            modelName: getArgValue<string | undefined>("--model", "gpt-4o"),
+            modelName: getArgValue<string | undefined>(
+                "--model",
+                "claude-opus-4-6",
+            ),
             specLimit: getArgValue<string | number>("--spec_limit", 10),
             apiKey: getArgValue<string | undefined>("--apikey", undefined),
             specFile: getArgValue<string | undefined>("--specFile", undefined),
@@ -90,7 +93,6 @@ const getVars = async () => {
 };
 
 const run = async () => {
-    // If --version or -v is passed, print the package version and exit.
     if (args.includes("--version") || args.includes("-v")) {
         console.log(`autospec version ${version}`);
         process.exit(0);

@@ -1,53 +1,63 @@
-name: Run Autospec System Tests
+name: CI
 
-# For now, let's only manually trigger:
 on:
-    workflow_dispatch:
-    # push:
-    #     branches:
-    #         - main
-# pull_request:
-#     branches:
-#         - main
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-    run-autospec:
+    ci:
         runs-on: ubuntu-latest
-
         steps:
-            - name: Checkout repository
-              uses: actions/checkout@v3
+            - uses: actions/checkout@v4
 
-            - name: Set up Node.js
-              uses: actions/setup-node@v3
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v4
               with:
-                  node-version: "20"
+                  node-version: "22"
+                  cache: pnpm
 
-            - name: Install dependencies
-              run: npm install
+            - run: pnpm install
 
-            - name: Install Playwright (chrome only)
-              run: npx playwright install
+            - name: Typecheck
+              run: pnpm run tsc
 
-            - name: Run Unit Tests
-              run: npm run test
+            - name: Lint
+              run: pnpm run lint
 
-            - name: Run Autospec Benchmark
+            - name: Test
+              run: pnpm run test
+
+    benchmark:
+        runs-on: ubuntu-latest
+        if: github.event_name == 'workflow_dispatch'
+        needs: ci
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: pnpm
+
+            - run: pnpm install
+            - run: npx playwright install chromium
+
+            - name: Build
+              run: pnpm run build
+
+            - name: Run Benchmark
               env:
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-              run: node benchmark/benchmark.js
+              run: pnpm run benchmark
 
-            - name: Output Benchmark Summary to Github Action Summary
-              run: |
-                  # output some backticks:
-                  echo "\`\`\`\n"
-                  cat benchmark/benchmark-results/*.json > $GITHUB_STEP_SUMMARY
-                  echo "\n\`\`\`"
-
-            - name: Upload Benchmark Results
-              uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v4
               with:
                   name: benchmark-results
                   path: |
-                      benchmark/benchmark-results/*
+                      benchmark-results/*
                       trajectories/*

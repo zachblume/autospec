@@ -1,4 +1,4 @@
-import { main, stringifyError } from "../src/index.js";
+import { main } from "../src/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -66,7 +66,7 @@ const runBenchmark = async () => {
             const { testResults, totalInputTokens, totalOutputTokens } =
                 await main({
                     testUrl: example.url,
-                    modelName: "gpt-4o",
+                    modelName: "claude-opus-4-6",
                     specLimit: example.specLimit ?? 10,
                     specificSpecToTest: example.specToTest,
                 });
@@ -100,7 +100,7 @@ const runBenchmark = async () => {
             results.push({
                 testUrl: example.url,
                 status: "error",
-                error: stringifyError(error),
+                error: error instanceof Error ? error.message : String(error),
             });
 
             // If the test is unable to execute, let's classify it as a false

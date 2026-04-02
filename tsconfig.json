@@ -1,14 +1,16 @@
 {
     "compilerOptions": {
-        "module": "es2020", // Specify module code generation
-        "moduleResolution": "bundler",
-        "outDir": "./build", // Redirect output structure to the directory
-        "rootDir": "./", // Specify the root directory of input files
+        "target": "es2022",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
+        "outDir": "./build",
+        "rootDir": "./",
         "declaration": true,
-        "strict": true, // Enable all strict type-checking options
-        "esModuleInterop": true, // Enable import interoperability between ES and CommonJS modules
-        "skipLibCheck": true
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true
     },
-    "include": ["**/*"],
-    "exclude": ["node_modules", "build"] // Exclude node_modules and build directories
+    "include": ["src/**/*", "benchmark/**/*"],
+    "exclude": ["node_modules", "build"]
 }
