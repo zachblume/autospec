@@ -2,58 +2,52 @@
 
 ### Open source end-to-end (e2e) test generation for web apps
 
-[Code Entrypoint](https://github.com/zachblume/autospec/blob/main/src/index.ts)
+Autospec is an AI agent that autonomously explores your web application,
+generates commonsense test specifications, and executes them — producing
+reusable Playwright test files. It uses vision and language models to mimic
+real user judgement on the entire UI after each interaction, deciding whether
+behavior is correct rather than checking for regressions against rigidly
+defined previous behavior.
 
-Autospec is an end-to-end test/QA agent, using vision and text language models
-to explore and generate commonsense test specifications for web applications.
-It aims to mimic user-like judgement on the entire UI output after each
-interaction to decide whether to raise an error about how an application
-behaves, instead of catching regressions against rigidly defined previous
-behavior.
-
--   This approach allows autospec to test new features immediately after
-    implementation, not just check for regressions.
--   It requires no configuration, making it straightforward to use.
+- Tests new features immediately after implementation, not just regressions.
+- Requires no configuration — point it at a URL and go.
+- Generates standard Playwright `.spec.js` files you can re-run anytime.
 
 ### Quick start
 
-Generate and run 10 specs on TodoMVC, a classic example web app:
-
-<!-- prettier-ignore -->
-```
-npx autospecai --url https://todomvc.com/examples/react/dist/ --apikey YOUR_OPENAI_API_KEY
-```
-
-You'll need to say "yes" to install the autospecai package, and the first run
-may take a few minutes to download dependencies like browser binaries that are
-used to execute the test environment.
-
-When the run completes, you'll see a summary of the tests that were run and
-whether they passed or failed.
-
-The successful specs will be saved within the `trajectories` folder in your
-working directory. You can re-execute these tests at any time by running:
-
-<!-- prettier-ignore -->
-```
-npx playwright test
-```
-
-Depending on your existing Playwright setup, you may need to add "trajectories"
-to the testDir in your playwright.config.js file.
-
-### Using environment variables instead of passing keys as a flag
-
-Copy the sample .env file, and fill in the OPENAI_API_KEY
-or GOOGLE_GENERATIVE_AI_API_KEY before running the app:
+Generate and run 10 specs on TodoMVC:
 
 <!-- prettier-ignore -->
 ```bash
-mv .env.example .env # rename the example to .env
-nano .env # edit as you like
+npx autospecai --url https://todomvc.com/examples/react/dist/ --apikey YOUR_ANTHROPIC_API_KEY
 ```
 
-### Learn more about configuration
+You'll need to say "yes" to install the autospecai package, and the first run
+may take a few minutes to download dependencies like browser binaries.
+
+When the run completes, you'll see a summary of passed and failed tests.
+Passing specs are saved as Playwright test files in the `trajectories/` folder
+alongside video recordings and screenshots. Re-run them anytime:
+
+<!-- prettier-ignore -->
+```bash
+npx playwright test
+```
+
+Depending on your existing Playwright setup, you may need to add `"trajectories"`
+to the `testDir` in your `playwright.config.js` file.
+
+### Using environment variables instead of passing keys as a flag
+
+Copy the sample .env file and fill in the API key for your chosen model:
+
+<!-- prettier-ignore -->
+```bash
+cp .env.example .env
+nano .env
+```
+
+### Configuration
 
 <!-- prettier-ignore -->
 ```bash
@@ -65,48 +59,52 @@ nano .env # edit as you like
 
     Optional:
     --help, -h           Show this help message.
+    --version, -v        Show version.
     --spec_limit <limit> The max number of specs to generate. Default 10.
-    --model <model>      The model to use for spec generation
-                            * "gpt-4o" (default)
-                            * "gemini-1.5-flash-latest"
-                            * "claude-3-haiku"
-                            * (note: Gemini flash is free up to rate limits)
+    --model <model>      The model to use for spec generation:
+                            * "claude-opus-4-6" (default)
+                            * "gpt-5.4"
+                            * "gemini-2.5-flash"
     --apikey <key>       The relevant API key for the chosen model's API.
                             * If not specified, we'll fall back on the
-                            following environment variables:
+                              following environment variables:
+                            * ANTHROPIC_API_KEY
                             * OPENAI_API_KEY
                             * GOOGLE_GENERATIVE_AI_API_KEY
-                            * ANTHROPIC_API_KEY
-
+    --specFile <file>    Path to a JSON file of pre-defined specs to run
+                         (or "-" to read from stdin).
 ```
 
-## Example output
+### How it works
 
-Logs are printed to the console like so, as well as to a trajectories/\*\*
-folder alongside a video, png and HTML/JSON DOM snapshots:
+1. **Plan** — Crawls up to 3 pages from your URL, captures accessibility
+   snapshots, and asks the model to generate test specs.
+2. **Execute** — Runs each spec in parallel, each in its own isolated browser
+   context. The agent uses semantic actions (click by role, fill by label,
+   press keys, scroll, navigate) and re-reads the page's accessibility
+   snapshot after every step.
+3. **Report** — Prints a pass/fail summary and writes Playwright `.spec.js`
+   files for passing tests using modern locator APIs (`getByRole`,
+   `getByLabel`, `getByText`).
 
-<!-- prettier-ignore -->
+### Architecture
+
 ```
-Test Summary:
-✔ 1. Check if the page loads successfully
-  1.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The page loaded successfully with all expected elements visible., planningThoughtAboutTheActionIWillTake: The page has loaded successfully as indicated by the presence of the header, input field, and footer. I will mark the spec as complete.
-✔ 2. Check if the title 'todos' is displayed
-  2.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The title 'todos' is displayed as an h1 element in the header section., planningThoughtAboutTheActionIWillTake: I will verify if the title 'todos' is displayed by checking the presence of the h1 element with the text 'todos'.
-✔ 3. Check if the input box with placeholder 'What needs to be done?' is present
-  3.1) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The input box with the placeholder 'What needs to be done?' is present in the HTML snapshot., planningThoughtAboutTheActionIWillTake: I will check if the input box with the placeholder 'What needs to be done?' is present in the HTML snapshot.
-✔ 4. Check if a new todo item can be added
-  4.1) action: clickOn, cssSelector: input.new-todo, nth: 0, planningThoughtAboutTheActionIWillTake: I will move the mouse cursor to the input field to add a new todo item.
-  4.2) action: keyboardInputString, cssSelector: input.new-todo, nth: 0, string: Buy groceries, planningThoughtAboutTheActionIWillTake: I will type a new todo item into the input field.
-  4.3) action: keyboardInputSingleKey, cssSelector: input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: I will press the Enter key to add the new todo item.
-  4.4) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The new todo item 'Buy groceries' was successfully added to the list., planningThoughtAboutTheActionIWillTake: I will mark the spec as complete because the new todo item 'Buy groceries' has been successfully added.
-✔ 5. Check if a todo item can be marked as completed
-  5.1) action: keyboardInputString, cssSelector: input.new-todo, nth: 0, string: Test Todo Item, planningThoughtAboutTheActionIWillTake: To check if a todo item can be marked as completed, I first need to add a new todo item. I will type a new todo item in the input field and press Enter.
-  5.2) action: keyboardInputSingleKey, cssSelector: input.new-todo, nth: 0, key: Enter, planningThoughtAboutTheActionIWillTake: I need to press Enter to add the new todo item to the list.
-  5.3) action: clickOn, cssSelector: input.toggle, nth: 0, planningThoughtAboutTheActionIWillTake: Now that the todo item is added, I will mark it as completed by clicking the checkbox next to the todo item.
-  5.4) action: markSpecAsComplete, reason: The spec passed, fullProseExplanationOfReasoning100charmax: The todo item was successfully marked as completed., planningThoughtAboutTheActionIWillTake: The todo item has been marked as completed, as indicated by the strikethrough text and the checkbox being checked. I will mark the spec as complete.
-...
-autospec passed for https://todomvc.com/examples/react/dist/
+src/
+├── cli.ts        # CLI argument parsing
+├── index.ts      # Orchestration entry point
+├── ai.ts         # Model provider setup (Vercel AI SDK)
+├── planner.ts    # Page crawling & test plan generation
+├── executor.ts   # Agent loop for test execution
+├── reporter.ts   # Output formatting & Playwright codegen
+├── browser.ts    # Browser lifecycle & snapshots
+└── schemas.ts    # Zod schemas & TypeScript types
 ```
+
+### Requirements
+
+- Node.js >= 22
+- An API key for one of the supported models
 
 ### Contributing
 
